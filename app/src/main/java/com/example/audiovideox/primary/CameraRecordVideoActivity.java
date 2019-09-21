@@ -312,14 +312,14 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
                 String imagePath = MediaStore.Images.Media.insertImage(getContentResolver(), bitmap,
                         "无名：" + new Random().nextInt(100), "描述");
                 //但是这里发广播不起作用
-//                Intent intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-//                Uri uri = FileProvider.getUriForFile(this, authority, currentFile);
-////                Uri uri = Uri.fromFile(currentFile);
-//                intent.setData(uri);
-//                sendBroadcast(intent);
+                Intent intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+                Uri uri = FileProvider.getUriForFile(this, authority, currentFile);
+//                Uri uri = Uri.fromFile(currentFile);
+                intent.setData(uri);
+                sendBroadcast(intent);
 ////                Log.d(TAG, "onActivityResult---imagePath: "+imagePath);
-//                MyMediaScanner scanner = new MyMediaScanner(this);
-//                scanner.scanFileAndType(new String[]{currentFile.getAbsolutePath()},new String[]{"image/jpeg"});
+                MyMediaScanner scanner = new MyMediaScanner(this);
+                scanner.scanFileAndType(new String[]{currentFile.getAbsolutePath()},new String[]{"image/jpeg"});
                 //还有一个办法就是：直接把文件路径写在相册目录下-DCIM/Camera/xxx.jpg，然后再扫描更新
                 break;
         }
