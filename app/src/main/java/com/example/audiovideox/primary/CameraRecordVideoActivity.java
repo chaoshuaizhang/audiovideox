@@ -265,7 +265,7 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
      */
     private void systemCameraTakePicture() {
         //getExternalCacheDir应用关联缓存目录-zaiSD卡中单独开辟缓存区域存放当前应用的数据，引用卸载后会被清除
-        File file = new File(Environment.getExternalStorageDirectory(), "sys_camera_take_pic");
+        File file = new File(getExternalCacheDir(), "sys_camera_take_pic_cache");
         if (!file.exists()) {
             file.mkdir();
         }
