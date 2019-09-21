@@ -265,7 +265,8 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
      */
     private void systemCameraTakePicture() {
         //getExternalCacheDir应用关联缓存目录-zaiSD卡中单独开辟缓存区域存放当前应用的数据，引用卸载后会被清除
-        File file = new File(getExternalCacheDir(), "sys_camera_take_pic_cache");
+        //getExternalCacheDir时，下边执行同步时，根本同步不过去，跟是不是再xml中配置path无关
+        File file = new File(Environment.getExternalStorageDirectory(), "sys_camera_take_pic");
         if (!file.exists()) {
             file.mkdir();
         }
@@ -317,8 +318,8 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
 //                intent.setData(uri);
 //                sendBroadcast(intent);
 ////                Log.d(TAG, "onActivityResult---imagePath: "+imagePath);
-                MyMediaScanner scanner = new MyMediaScanner(this);
-                scanner.scanFileAndType(new String[]{currentFile.getAbsolutePath()},new String[]{"image/jpeg"});
+//                MyMediaScanner scanner = new MyMediaScanner(this);
+//                scanner.scanFileAndType(new String[]{currentFile.getAbsolutePath()},new String[]{"image/jpeg"});
                 //还有一个办法就是：直接把文件路径写在相册目录下-DCIM/Camera/xxx.jpg，然后再扫描更新
                 break;
         }
