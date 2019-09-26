@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".primary.MediaRecorderActivity">
+
+    <ListView
+        android:id="@+id/listview"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@id/btn_start"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/btn_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="mediaClick"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="开始"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toLeftOf="@id/btn_stop" />
+
+    <TextView
+        android:id="@+id/btn_stop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="mediaClick"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="结束"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/btn_start"
+        app:layout_constraintRight_toLeftOf="@id/btn_play" />
+
+    <TextView
+        android:id="@+id/btn_play"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="mediaClick"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="系统播放"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/btn_stop"
+        app:layout_constraintRight_toRightOf="@id/btn_play_mediaplayer" />
+
+    <TextView
+        android:id="@+id/btn_play_mediaplayer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="mediaClick"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="MediaPlayer播放"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/btn_play"
+        app:layout_constraintRight_toRightOf="@id/btn_delete" />
+
+    <TextView
+        android:id="@+id/btn_delete"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="mediaClick"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:text="删除"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/btn_play_mediaplayer"
+        app:layout_constraintRight_toRightOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
