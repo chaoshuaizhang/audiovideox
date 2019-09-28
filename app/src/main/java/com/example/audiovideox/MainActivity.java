@@ -4,7 +4,7 @@ import android.os.Bundle;
 import android.view.View;
 
 import com.example.audiovideox.primary.AudioRecordActivity;
-import com.example.audiovideox.primary.CameraRecordVideoActivity;
+import com.example.audiovideox.primary.CameraRecordAudioActivity;
 import com.example.audiovideox.primary.MediaRecorderActivity;
 import com.example.audiovideox.primary.OpenCameraResActivity;
 import com.example.audiovideox.primary.ThreeWayDrawImgActivity;
@@ -31,10 +31,13 @@ public class MainActivity extends AppCompatActivity {
                 AudioRecordActivity.start(this);
                 break;
             case R.id.tv_camera_record_video:
-                CameraRecordVideoActivity.start(this);
+                CameraRecordAudioActivity.start(this);
                 break;
             case R.id.tv_open_camera_resources:
                 OpenCameraResActivity.start(this);
+                break;
+            case R.id.tv_camera_take_video:
+                CameraRecordVideoActivity.start(this);
                 break;
         }
     }

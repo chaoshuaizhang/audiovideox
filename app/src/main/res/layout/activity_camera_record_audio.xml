@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/camera_bg"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".primary.CameraRecordAudioActivity">
+
+    <com.example.audiovideox.primary.view.MyTextureView
+        android:id="@+id/surface_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <TextView
+        android:id="@+id/tv_camera_params"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <Button
+        android:id="@+id/camera_native"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:background="@drawable/ic_round_bg"
+        android:onClick="btnClick"
+        android:text="调用系\n统拍照"
+        android:textColor="#FFFFFF"
+        app:layout_constraintBottom_toTopOf="@id/camera_record_native"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toLeftOf="@id/camera_custom"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/camera_custom"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:background="@drawable/ic_round_bg"
+        android:onClick="btnClick"
+        android:text="使用Surface\nView拍照"
+        android:textColor="#FFFFFF"
+        app:layout_constraintBottom_toTopOf="@+id/camera_record_custom"
+        app:layout_constraintLeft_toRightOf="@id/camera_native"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/camera_record_native"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:background="@drawable/ic_round_bg"
+        android:text="调用系\n统录制"
+        android:textColor="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toLeftOf="@id/camera_record_custom"
+        app:layout_constraintTop_toBottomOf="@id/camera_native" />
+
+    <Button
+        android:id="@+id/camera_record_custom"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:background="@drawable/ic_round_bg"
+        android:text="自定义\n录制"
+        android:textColor="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/camera_record_native"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/camera_custom" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

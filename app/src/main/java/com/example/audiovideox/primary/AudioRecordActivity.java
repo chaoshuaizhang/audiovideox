@@ -11,7 +11,9 @@ import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Environment;
 import android.os.SystemClock;
+
 import androidx.annotation.RequiresApi;
+
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -33,6 +35,11 @@ import java.util.concurrent.Executors;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+/**
+ * 使用AudioRecord来录制音频
+ *
+ * @author changePosition
+ */
 public class AudioRecordActivity extends AppCompatActivity implements SeekBar.OnSeekBarChangeListener {
 
     private SeekBar seekBar;
@@ -60,6 +67,7 @@ public class AudioRecordActivity extends AppCompatActivity implements SeekBar.On
         switch (view.getId()) {
             case R.id.btn_start:
                 isRecording = true;
+                //开始录制
                 executorService.execute(new RecordRunnable());
                 break;
             case R.id.btn_stop:
@@ -68,6 +76,8 @@ public class AudioRecordActivity extends AppCompatActivity implements SeekBar.On
                 break;
             case R.id.btn_play:
                 executorService.execute(new TrackRunnable());
+                break;
+            default:
                 break;
         }
     }
@@ -100,7 +110,7 @@ public class AudioRecordActivity extends AppCompatActivity implements SeekBar.On
                 int minBufferSize = AudioRecord.getMinBufferSize(44100,
                         AudioFormat.CHANNEL_IN_STEREO,
                         AudioFormat.ENCODING_PCM_16BIT);
-                //声源、采样率、音频通道、音频格式、缓冲区大小（一句前边几个参数来设置）
+                //声源、采样率、音频通道、音频格式、缓冲区大小（依据前边几个参数来设置）
                 audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,
                         44100,
                         AudioFormat.CHANNEL_IN_STEREO,
@@ -115,6 +125,7 @@ public class AudioRecordActivity extends AppCompatActivity implements SeekBar.On
                     //读进去多少，写出来多少
                     int i = audioRecord.read(byteBuffer, 0, byteBuffer.length);
                     Log.d(TAG, "run: " + i);
+                    //写到文件中
                     dos.write(byteBuffer, 0, i);
                 }
                 Log.d(TAG, "录制完毕: " + file.length());
@@ -134,6 +145,7 @@ public class AudioRecordActivity extends AppCompatActivity implements SeekBar.On
             int minBufferSize = AudioRecord.getMinBufferSize(44100,
                     AudioFormat.CHANNEL_IN_STEREO,
                     AudioFormat.ENCODING_PCM_16BIT);
+            //使用AudioRecord录制的音频，需要使用AudioTrack才能播放
             audioTrack = new AudioTrack(audioAttributes, audioFormat, minBufferSize,
                     AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE);
             byte[] byteBuffer = new byte[minBufferSize];
@@ -144,7 +156,7 @@ public class AudioRecordActivity extends AppCompatActivity implements SeekBar.On
                 do {
                     i = dis.read(byteBuffer);
                     audioTrack.write(byteBuffer, 0, i);
-                }while (i != -1);
+                } while (i != -1);
                 Log.d(TAG, "run: 播放完成");
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
