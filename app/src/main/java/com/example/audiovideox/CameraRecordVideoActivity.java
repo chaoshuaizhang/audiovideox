@@ -17,6 +17,7 @@ import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
@@ -30,10 +31,13 @@ import android.view.View;
 import android.widget.Toast;
 
 import com.example.audiovideox.primary.view.MyCaptureSurfaceView;
+import com.example.audiovideox.primary.view.MyTextureView;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -53,12 +57,14 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
     private CameraDevice.StateCallback stateCallback;
     //
     private CameraCaptureSession preViewSession;
-    //得到相机获取的图片的大小
+    //这个size用来设置预览界面ServiceView的大小
     private Size photoSize;
-    private MyCaptureSurfaceView surfaceView;
+    private Size videoSize;
+    private MyTextureView surfaceView;
     private MediaRecorder mediaRecorder;
-    private SurfaceHolder surfaceHolder;
+    //视频文件
     private File videoFile;
+    //文件挂载的目录
     private File mountedDir;
     private CaptureRequest.Builder builder;
 
@@ -67,54 +73,50 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera_record_video);
         surfaceView = findViewById(R.id.surface_view_video);
-        initSurfaceHolder();
+        //对于使用SurfaceView需要初始化一下SurfaceHolder
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1002);
+            requestPermissions(new String[]{Manifest.permission.CAMERA,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    Manifest.permission.RECORD_AUDIO}, 1002);
         }
+        //初始化相机
         initCamera();
     }
 
     private void initMediaRecorder() {
+        //创建挂载目录
         mountedDir = new File(getExternalFilesDir(Environment.MEDIA_MOUNTED), "mediavideos");
         if (!mountedDir.exists()) {
             mountedDir.mkdir();
         }
-        mediaRecorder = new MediaRecorder();
-        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
-        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-        mediaRecorder.setVideoEncodingBitRate(10000000);
-        mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-        mediaRecorder.setVideoFrameRate(30);
         try {
+            mediaRecorder = new MediaRecorder();
+            //设置音频源为麦克风
+            mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+            //
+            mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+            //这块儿报错
+            //mediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
+            //设置输出文件格式
+            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+            //构造输出文件
             videoFile = File.createTempFile(System.currentTimeMillis() + "", ".mp4", mountedDir);
             mediaRecorder.setOutputFile(videoFile.getAbsolutePath());
+            mediaRecorder.setVideoEncodingBitRate(10000000);
+            mediaRecorder.setVideoFrameRate(30);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                //如果不设置videoSize的话，拍出的视频会很模糊
+                mediaRecorder.setVideoSize(videoSize.getWidth(), videoSize.getHeight());
+            }
+            //设置视频编码
+            mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+            //设置音频编码
+            mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
             mediaRecorder.prepare();
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
-    }
-
-    private void initSurfaceHolder() {
-        surfaceHolder = surfaceView.getHolder();
-        surfaceHolder.addCallback(new SurfaceHolder.Callback() {
-            @Override
-            public void surfaceCreated(SurfaceHolder holder) {
-
-            }
-
-            @Override
-            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-
-            }
-
-            @Override
-            public void surfaceDestroyed(SurfaceHolder holder) {
-
-            }
-        });
     }
 
     /**
@@ -151,10 +153,9 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
                                 return o1.getWidth() * o1.getHeight() - o2.getWidth() * o2.getHeight();
                             }
                         });
-                        Point point = new Point();
-                        getWindowManager().getDefaultDisplay().getSize(point);
                         //此处得到最接近的大小
                         photoSize = sizes[sizes.length - 1];
+                        videoSize = chooseVideoSize(map.getOutputSizes(MediaRecorder.class));
                         break;
                     }
                 }
@@ -165,13 +166,23 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
         stateCallback = getStateCallback();
     }
 
+    private static Size chooseVideoSize(Size[] choices) {
+        for (Size size : choices) {
+            if (size.getWidth() == size.getHeight() * 4 / 3 && size.getWidth() <= 1080) {
+                return size;
+            }
+        }
+        Log.e(TAG, "Couldn't find any suitable video size");
+        return choices[choices.length - 1];
+    }
+
     public CameraDevice.StateCallback getStateCallback() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             stateCallback = new CameraDevice.StateCallback() {
                 @Override
                 public void onOpened(@NonNull CameraDevice camera) {
                     cameraDevice = camera;
-                    //相机打开时回调，即调用openCamera后，回调到这里---开始录制视频
+                    //相机打开时回调，即调用openCamera后，回调到这里---开始预览
                     takePreview();
                 }
 
@@ -217,8 +228,12 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
                 takeVideo();
                 break;
             case R.id.btn_stop:
-                mediaRecorder.stop();
-                mediaRecorder.reset();
+                try {
+                    mediaRecorder.stop();
+                    mediaRecorder.reset();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 break;
             default:
                 break;
@@ -231,9 +246,12 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
     private void takePreview() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             try {
+                SurfaceTexture surfaceTexture = surfaceView.getSurfaceTexture();
+                surfaceTexture.setDefaultBufferSize(1500, 1500);
+                Surface surface = new Surface(surfaceTexture);
                 builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-                builder.addTarget(surfaceHolder.getSurface());
-                cameraDevice.createCaptureSession(Arrays.asList(surfaceHolder.getSurface()),
+                builder.addTarget(surface);
+                cameraDevice.createCaptureSession(Collections.singletonList(surface),
                         new CameraCaptureSession.StateCallback() {
                             @Override
                             public void onConfigured(@NonNull CameraCaptureSession session) {
@@ -266,9 +284,15 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             try {
                 builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
-                builder.addTarget(surfaceHolder.getSurface());
+                List<Surface> surfaces = new ArrayList<>();
+                SurfaceTexture surfaceTexture = surfaceView.getSurfaceTexture();
+                surfaceTexture.setDefaultBufferSize(1500, 1500);
+                Surface surface = new Surface(surfaceTexture);
+                builder.addTarget(surface);
                 builder.addTarget(mediaRecorder.getSurface());
-                cameraDevice.createCaptureSession(Arrays.asList(surfaceHolder.getSurface(), mediaRecorder.getSurface()),
+                surfaces.add(surface);
+                surfaces.add(mediaRecorder.getSurface());
+                cameraDevice.createCaptureSession(surfaces,
                         new CameraCaptureSession.StateCallback() {
                             @Override
                             public void onConfigured(@NonNull CameraCaptureSession session) {
@@ -291,6 +315,15 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
         }
+    }
+
+    private Size getPreViewSize(){
+
+        return null;
+    }
+
+    private Size getViewoSize(){
+        return null;
     }
 
     public static void start(Context context) {
