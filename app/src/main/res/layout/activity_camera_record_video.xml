@@ -1,38 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     tools:context=".CameraRecordVideoActivity">
 
-    <Button
-        android:id="@+id/btn_preview"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:onClick="videoClick"
-        android:text="预览" />
-
-    <Button
-        android:id="@+id/btn_record"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:onClick="videoClick"
-        android:text="录制" />
-    <Button
-        android:id="@+id/btn_stop"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentRight="true"
-        android:onClick="videoClick"
-        android:text="停止" />
+    <com.example.audiovideox.primary.view.MyTextureView
+        android:id="@+id/texture_view_video"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
     <com.example.audiovideox.primary.view.MyCaptureSurfaceView
         android:id="@+id/surface_view_video"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/btn_preview" />
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:visibility="gone" />
 
-</RelativeLayout>
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="5dp">
+
+        <Button
+            android:id="@+id/btn_preview"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:background="@drawable/ic_round_bg"
+            android:onClick="videoClick"
+            android:text="预览" />
+
+        <Button
+            android:id="@+id/btn_record"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:background="@drawable/ic_round_bg"
+            android:layout_centerHorizontal="true"
+            android:onClick="videoClick"
+            android:text="录制" />
+
+        <Button
+            android:id="@+id/btn_reverse"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:background="@drawable/ic_round_bg"
+            android:layout_alignParentRight="true"
+            android:onClick="videoClick"
+            android:text="旋转" />
+    </RelativeLayout>
+
+</LinearLayout>

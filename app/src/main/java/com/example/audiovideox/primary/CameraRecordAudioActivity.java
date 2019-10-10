@@ -27,6 +27,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -217,13 +218,15 @@ public class CameraRecordAudioActivity extends BaseActivity<CameraPresenter> {
                         }
                     });
                     Point point = new Point();
+                    //当前屏幕大小
                     getWindowManager().getDefaultDisplay().getSize(point);
-                    String params = "参数为：" + point.x + "  " + point.y + "\n";
+                    String params = "当前大小为：" + point.x + "  " + point.y + "\n";
+                    params += "支持的大小\n";
                     for (int i = 0; i < outputSizes.length; i++) {
                         params += (outputSizes[i].getWidth() + "  " + outputSizes[i].getHeight() + "\n");
                     }
                     tvCameraParams.setText(params);
-                    //此处得到最接近的大小
+                    //此处得到最接近的大小---实际不是，就是拿了个最大值
                     photoSize = outputSizes[outputSizes.length - 1];
                     break;
                 }
@@ -270,7 +273,7 @@ public class CameraRecordAudioActivity extends BaseActivity<CameraPresenter> {
         }
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         currentFile = new File(file, System.currentTimeMillis() + ".jpg");
-        Log.d(TAG, "systemCameraTakePicture: "+currentFile.getAbsolutePath());
+        Log.d(TAG, "systemCameraTakePicture: " + currentFile.getAbsolutePath());
         //系统版本低于7.0时把file转为Uri对象（这个Uri标示着这个对象的真实路径），高于7.0时会认为此方式不安全，需要使用内容提供者
         if (Build.VERSION.SDK_INT >= 24) {
             Log.d(TAG, "systemCameraTakePicture: >= 24");
@@ -318,7 +321,7 @@ public class CameraRecordAudioActivity extends BaseActivity<CameraPresenter> {
                 sendBroadcast(intent);
 ////                Log.d(TAG, "onActivityResult---imagePath: "+imagePath);
                 MyMediaScanner scanner = new MyMediaScanner(this);
-                scanner.scanFileAndType(new String[]{currentFile.getAbsolutePath()},new String[]{"image/jpeg"});
+                scanner.scanFileAndType(new String[]{currentFile.getAbsolutePath()}, new String[]{"image/jpeg"});
                 //还有一个办法就是：直接把文件路径写在相册目录下-DCIM/Camera/xxx.jpg，然后再扫描更新
                 break;
         }
@@ -353,6 +356,7 @@ public class CameraRecordAudioActivity extends BaseActivity<CameraPresenter> {
             imageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
                 @Override
                 public void onImageAvailable(ImageReader reader) {
+                    Log.d(TAG, "onImageAvailable: ");
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                         cameraDevice.close();
                     }

@@ -168,7 +168,7 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
                     } else if (FACING_FRONT && facing == CameraCharacteristics.LENS_FACING_FRONT) {
                         map = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                     }
-                    if(map == null){
+                    if (map == null) {
                         continue;
                     }
                     Size[] sizes = map.getOutputSizes(SurfaceTexture.class);
@@ -198,6 +198,7 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
             stateCallback = new CameraDevice.StateCallback() {
                 @Override
                 public void onOpened(@NonNull CameraDevice camera) {
+                    //状态改变后，获得新的device（原有的device要关闭）
                     cameraDevice = camera;
                     //相机打开时回调，即调用openCamera后，回调到这里---开始预览
                     takePreview();
@@ -259,10 +260,10 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
                 takeVideo();
                 break;
             case R.id.btn_reverse:
-//                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-//                    preViewSession.close();
-//                    preViewSession = null;
-//                }
+                //切换摄像头时一定要把device关闭
+                if (cameraDevice != null) {
+                    cameraDevice.close();
+                }
                 FACING_FRONT = !FACING_FRONT;
                 //重新初始化
                 initCamera();
@@ -401,11 +402,11 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
     class MyRunnable implements Runnable {
         @Override
         public void run() {
-            Log.d(TAG, "run: "+recordTime);
+            Log.d(TAG, "run: " + recordTime);
             handler.post(new Runnable() {
                 @Override
                 public void run() {
-                    btnRecordTime.setText((recordTime++)+" s");
+                    btnRecordTime.setText((recordTime++) + " s");
                 }
             });
         }
