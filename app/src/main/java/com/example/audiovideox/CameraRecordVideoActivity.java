@@ -27,6 +27,7 @@ import android.os.Looper;
 import android.util.Log;
 import android.util.LruCache;
 import android.util.Size;
+import android.util.SparseIntArray;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.View;
@@ -66,8 +67,6 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
     private CameraDevice.StateCallback stateCallback;
     //
     private CameraCaptureSession preViewSession;
-    //这个size用来设置预览界面ServiceView的大小
-    private Size photoSize;
     private Size videoSize;
     private MyTextureView textureView;
     private MediaRecorder mediaRecorder;
@@ -83,6 +82,14 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
     private MyRunnable runnable = new MyRunnable();
     private Button btnRecordTime;
     private boolean FACING_FRONT = false;
+    private static SparseIntArray array = new SparseIntArray();
+
+    static {
+        array.append(Surface.ROTATION_0, 90);
+        array.append(Surface.ROTATION_90, 0);
+        array.append(Surface.ROTATION_180, 270);
+        array.append(Surface.ROTATION_270, 180);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,16 +103,20 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
                     Manifest.permission.RECORD_AUDIO}, 1002);
         }
         //初始化相机
-        service = new ScheduledThreadPoolExecutor(1);
         initCamera();
+        //创建存储视频文件的目录
+        initMountedDir();
     }
 
-    private void initMediaRecorder() {
+    private void initMountedDir(){
         //创建挂载目录
         mountedDir = new File(getExternalFilesDir(Environment.MEDIA_MOUNTED), "mediavideos");
         if (!mountedDir.exists()) {
             mountedDir.mkdir();
         }
+    }
+
+    private void setMediaRecorder() {
         try {
             mediaRecorder = new MediaRecorder();
             //设置音频源为麦克风
@@ -131,11 +142,13 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
             mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
             //设置音频编码
             mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+            // int rotation = getWindowManager().getDefaultDisplay().getRotation();
+            int rotation = FACING_FRONT ? 2 : 0;
+            mediaRecorder.setOrientationHint(array.get(rotation));
             mediaRecorder.prepare();
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 
     /**
@@ -151,6 +164,14 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
                 return;
             }
         }
+        initCameraParams();
+    }
+
+    /**
+     * 得到摄像头（前置、后置）ID
+     *
+     */
+    private void initCameraParams() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 //得到cameraId
@@ -159,6 +180,7 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
                     cameraId = cameraManager.getCameraIdList()[i];
                     //得到此ID对应的相关属性
                     CameraCharacteristics cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraId);
+                    //得到前置或后置摄像头
                     int facing = cameraCharacteristics.get(CameraCharacteristics.LENS_FACING);
                     StreamConfigurationMap map = null;
                     //判断是否是后置摄像头
@@ -171,8 +193,6 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
                     if (map == null) {
                         continue;
                     }
-                    Size[] sizes = map.getOutputSizes(SurfaceTexture.class);
-                    photoSize = getPreViewSize(sizes);
                     videoSize = chooseVideoSize(map.getOutputSizes(MediaRecorder.class));
                     break;
                 }
@@ -185,8 +205,10 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
 
     private static Size chooseVideoSize(Size[] choices) {
         for (Size size : choices) {
-            if (size.getWidth() == size.getHeight() * 4 / 3 && size.getWidth() <= 1080) {
-                return size;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                if (size.getWidth() == size.getHeight() * 4 / 3 && size.getWidth() <= 1080) {
+                    return size;
+                }
             }
         }
         Log.e(TAG, "Couldn't find any suitable video size");
@@ -239,6 +261,7 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
                 break;
             case R.id.btn_record:
                 if (isRecording) {
+                    //停止任务
                     service.shutdownNow();
                     try {
                         mediaRecorder.stop();
@@ -252,17 +275,21 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
                     break;
                 }
                 isRecording = true;
+                recordTime = 0;
+                service = new ScheduledThreadPoolExecutor(1);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     preViewSession.close();
                     preViewSession = null;
                 }
-                initMediaRecorder();
+                setMediaRecorder();
                 takeVideo();
                 break;
             case R.id.btn_reverse:
                 //切换摄像头时一定要把device关闭
                 if (cameraDevice != null) {
-                    cameraDevice.close();
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        cameraDevice.close();
+                    }
                 }
                 FACING_FRONT = !FACING_FRONT;
                 //重新初始化
@@ -363,31 +390,6 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * @param sizes
-     * @return
-     */
-    private Size getPreViewSize(Size[] sizes) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            //sizes本身是按照屏幕分辨率排序的（注意是w * h的和来排序的）
-            for (Size size : sizes) {
-                Log.d(TAG, "getPreViewSize: " + size.getWidth() + "     " + size.getHeight() + "     " + (size.getWidth() * size.getHeight()));
-                /**
-                 * 宽高比例3：4，注意因为w和h是int类型，所以比较时注意，比如直接4/3=1，3/4=0
-                 * 对于1080p、720p的含义是：假设分辨率是x * y，则较小的那个就表示多少p
-                 * */
-                if (size.getWidth() == size.getHeight() * 4 / 3 && size.getWidth() < 1080) {
-                    return size;
-                }
-            }
-        }
-        return sizes[0];
-    }
-
-    private Size getViewoSize() {
-        return null;
-    }
-
     public static void start(Context context) {
         Intent starter = new Intent(context, CameraRecordVideoActivity.class);
         context.startActivity(starter);
@@ -397,6 +399,11 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         service.shutdown();
+        //在销毁后一定要关闭device，否则下次进入Activity时无法使用device，这块儿很奇怪，明明activity已经销毁了...
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            cameraDevice.close();
+        }
+        cameraDevice = null;
     }
 
     class MyRunnable implements Runnable {
