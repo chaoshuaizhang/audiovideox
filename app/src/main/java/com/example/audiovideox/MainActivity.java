@@ -5,6 +5,7 @@ import android.view.View;
 
 import com.example.audiovideox.primary.AudioRecordActivity;
 import com.example.audiovideox.primary.CameraRecordAudioActivity;
+import com.example.audiovideox.primary.MediaExtractorActivity;
 import com.example.audiovideox.primary.MediaRecorderActivity;
 import com.example.audiovideox.primary.OpenCameraResActivity;
 import com.example.audiovideox.primary.ThreeWayDrawImgActivity;
@@ -38,6 +39,9 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.tv_camera_take_video:
                 CameraRecordVideoActivity.start(this);
+                break;
+            case R.id.tv_play_videos:
+                MediaExtractorActivity.start(this);
                 break;
         }
     }

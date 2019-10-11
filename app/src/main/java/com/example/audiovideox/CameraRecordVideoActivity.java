@@ -144,7 +144,7 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
             mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
             // int rotation = getWindowManager().getDefaultDisplay().getRotation();
             int rotation = FACING_FRONT ? 2 : 0;
-            mediaRecorder.setOrientationHint(array.get(rotation));
+            mediaRecorder.setOrientationHint(array.get(3));
             mediaRecorder.prepare();
         } catch (Exception e) {
             e.printStackTrace();
@@ -319,7 +319,7 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             try {
                 SurfaceTexture surfaceTexture = textureView.getSurfaceTexture();
-                surfaceTexture.setDefaultBufferSize(1500, 1500);
+                surfaceTexture.setDefaultBufferSize(videoSize.getWidth(), videoSize.getHeight());
                 Surface surface = new Surface(surfaceTexture);
                 builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
                 builder.addTarget(surface);

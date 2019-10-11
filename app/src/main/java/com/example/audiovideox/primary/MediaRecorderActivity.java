@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.media.MediaCodec;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.net.Uri;
@@ -41,7 +42,6 @@ public class MediaRecorderActivity extends AppCompatActivity implements AdapterV
     private List<String> list = new ArrayList<>();
     private int selectedPoi = -1;
     private String TAG = "MediaRecorderActivity";
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
