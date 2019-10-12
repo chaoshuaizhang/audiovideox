@@ -144,7 +144,7 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
             mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
             // int rotation = getWindowManager().getDefaultDisplay().getRotation();
             int rotation = FACING_FRONT ? 2 : 0;
-            mediaRecorder.setOrientationHint(array.get(3));
+            mediaRecorder.setOrientationHint(array.get(rotation));
             mediaRecorder.prepare();
         } catch (Exception e) {
             e.printStackTrace();

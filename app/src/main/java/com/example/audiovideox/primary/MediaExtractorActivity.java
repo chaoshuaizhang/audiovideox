@@ -13,6 +13,7 @@ import android.os.Environment;
 import android.view.View;
 
 import com.example.audiovideox.R;
+import com.example.audiovideox.util.cache.VideoUtil;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ public class MediaExtractorActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private RecyclerView.LayoutManager layoutManager;
     private VideosAdapter adapter;
-    private List<String> list = new ArrayList<>();
+    private List<String[]> list = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,7 +44,11 @@ public class MediaExtractorActivity extends AppCompatActivity {
     private void getVideos() {
         File mountedDir = new File(getExternalFilesDir(Environment.MEDIA_MOUNTED), "mediavideos");
         if (mountedDir.exists()) {
-            list.addAll(Arrays.asList(mountedDir.list()));
+            File[] files = mountedDir.listFiles();
+            for (int i = 0; i < files.length; i++) {
+                String[] arr = {files[i].getName(), files[i].getAbsolutePath()};
+                this.list.add(arr);
+            }
         }
     }
 
@@ -54,7 +59,29 @@ public class MediaExtractorActivity extends AppCompatActivity {
     }
 
     public void btnClick(View view) {
+        switch (view.getId()) {
+            case R.id.playvideo_btn:
+                //只播放视频不播放音频
+                playVideo(adapter.getSelectedPath());
+                break;
+            case R.id.play_btn:
+                //播放完整视频
+                break;
+            case R.id.playaudio_btn:
+                //只播放音频
+                break;
+            default:
+                break;
+        }
+    }
 
+    void playVideo(final String path) {
+        new Thread(){
+            @Override
+            public void run() {
+                VideoUtil.playVideo(path);
+            }
+        }.start();
     }
 
     public static void start(Context context) {
