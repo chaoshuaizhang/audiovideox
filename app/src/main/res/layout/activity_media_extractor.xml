@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".primary.MediaExtractorActivity">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view_videos"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@id/play_btn"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/playvideo_btn"
+        android:layout_width="75dp"
+        android:layout_height="75dp"
+        android:background="@drawable/ic_round_bg"
+        android:onClick="btnClick"
+        android:text="播放\n视频"
+        android:textColor="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toLeftOf="@id/play_btn" />
+
+    <Button
+        android:id="@+id/play_btn"
+        android:layout_width="75dp"
+        android:layout_height="75dp"
+        android:background="@drawable/ic_round_bg"
+        android:onClick="btnClick"
+        android:text="播放"
+        android:textColor="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/playvideo_btn"
+        app:layout_constraintRight_toLeftOf="@id/playaudio_btn" />
+
+    <Button
+        android:id="@+id/playaudio_btn"
+        android:layout_width="75dp"
+        android:layout_height="75dp"
+        android:background="@drawable/ic_round_bg"
+        android:onClick="btnClick"
+        android:text="播放\n音频"
+        android:textColor="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/play_btn"
+        app:layout_constraintRight_toRightOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

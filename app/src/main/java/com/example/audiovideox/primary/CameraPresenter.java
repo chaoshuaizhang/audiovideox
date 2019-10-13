@@ -1,12 +1,12 @@
 package com.example.audiovideox.primary;
 
-public class CameraPresenter implements BasePresenter<CameraRecordVideoActivity, CameraPresenter> {
+public class CameraPresenter implements BasePresenter<CameraRecordAudioActivity, CameraPresenter> {
 
     private BaseActivity activity;
 
     @Override
-    public CameraPresenter attachView(CameraRecordVideoActivity cameraRecordVideoActivity) {
-        this.activity = cameraRecordVideoActivity;
+    public CameraPresenter attachView(CameraRecordAudioActivity cameraRecordAudioActivity) {
+        this.activity = cameraRecordAudioActivity;
         return this;
     }
 }

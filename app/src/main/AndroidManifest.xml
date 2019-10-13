@@ -15,6 +15,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+        <activity android:name=".primary.MediaExtractorActivity"></activity>
+        <activity
+            android:name=".CameraRecordVideoActivity"
+            android:screenOrientation="portrait" />
+        <activity android:name=".primary.ExtractorMuxerActivity" />
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -36,8 +41,8 @@
         </provider>
 
         <activity android:name=".primary.AudioRecordActivity" />
-        <activity android:name=".primary.CameraRecordVideoActivity" />
-        <activity android:name=".primary.OpenCameraResActivity"></activity>
+        <activity android:name=".primary.CameraRecordAudioActivity" />
+        <activity android:name=".primary.OpenCameraResActivity" />
     </application>
 
 </manifest>

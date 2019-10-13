@@ -1,62 +1,46 @@
 package com.example.audiovideox.primary.view;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.util.AttributeSet;
-import android.util.Log;
+import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import android.view.TextureView;
 
-public class MyCaptureSurfaceView extends TextureView {
+import com.example.audiovideox.R;
 
-    private static final String TAG = "MyCaptureSurfaceView";
-    private float ratioW = 0;
-    private float ratioH = 0;
+public class MyCaptureSurfaceView extends SurfaceView implements SurfaceHolder.Callback {
+
 
     public MyCaptureSurfaceView(Context context) {
-        super(context);
+        this(context, null);
     }
 
     public MyCaptureSurfaceView(Context context, AttributeSet attrs) {
-        super(context, attrs);
+        this(context, attrs, 0);
     }
 
     public MyCaptureSurfaceView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
     }
 
-    /**
-     * 设置宽高比
-     *
-     * @param width
-     * @param height
-     */
-    public void setAspectRation(float width, float height) {
-        if (width < 0 || height < 0) {
-            throw new IllegalArgumentException("width or height can not be negative.");
-        }
-        ratioW = width;
-        ratioH = height;
-        //请求重新布局
-        //requestLayout();
+    @Override
+    public void surfaceCreated(SurfaceHolder holder) {
     }
 
-//    @Override
-//    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-//        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-//        int width = MeasureSpec.getSize(widthMeasureSpec);
-//        int height = MeasureSpec.getSize(heightMeasureSpec);
-//
-//        if (0 == ratioW || 0 == ratioH) {
-//            //未设定宽高比，使用预览窗口默认宽高
-//            setMeasuredDimension(width, height);
-//        } else {
-//            //设定宽高比，调整预览窗口大小（调整后窗口大小不超过默认值）
-//            if (width < height * ratioW / ratioH) {
-//                setMeasuredDimension(width, (int) (width * ratioH / ratioW));
-//            } else {
-//                setMeasuredDimension((int) (height * ratioW / ratioH), height);
-//            }
-//        }
-//        Log.d(TAG, "onMeasure: " + width + "  " + height);
-//    }
+
+    @Override
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+
+    }
+
+
 }

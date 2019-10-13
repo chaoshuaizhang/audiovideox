@@ -21,13 +21,13 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
-import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -42,12 +42,11 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.ViewGroup;
-import android.webkit.MimeTypeMap;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.audiovideox.R;
-import com.example.audiovideox.primary.view.MyCaptureSurfaceView;
+import com.example.audiovideox.primary.view.MyTextureView;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -56,12 +55,12 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Random;
 
-public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
+public class CameraRecordAudioActivity extends BaseActivity<CameraPresenter> {
 
     private ConstraintLayout constraintLayout;
-    private String TAG = "CameraRecordVideoActivity";
+    private String TAG = "CameraRecordAudioActivity";
     private File currentFile = null;
-    private MyCaptureSurfaceView surfaceView;
+    private MyTextureView surfaceView;
     private String authority = "com.example.audiovideox.fileprovider";
     private SurfaceHolder surfaceHolder;
     private CameraManager cameraManager;
@@ -92,7 +91,7 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_camera_record_video);
+        setContentView(R.layout.activity_camera_record_audio);
         constraintLayout = findViewById(R.id.camera_bg);
         tvCameraParams = findViewById(R.id.tv_camera_params);
         initCamera();
@@ -135,7 +134,7 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
 
                 @Override
                 public void onError(CameraDevice camera, int error) {
-                    Toast.makeText(CameraRecordVideoActivity.this, "摄像头开启失败", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(CameraRecordAudioActivity.this, "摄像头开启失败", Toast.LENGTH_SHORT).show();
                 }
             };
         } else {
@@ -219,13 +218,15 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
                         }
                     });
                     Point point = new Point();
+                    //当前屏幕大小
                     getWindowManager().getDefaultDisplay().getSize(point);
-                    String params = "参数为：" + point.x + "  " + point.y + "\n";
+                    String params = "当前大小为：" + point.x + "  " + point.y + "\n";
+                    params += "支持的大小\n";
                     for (int i = 0; i < outputSizes.length; i++) {
                         params += (outputSizes[i].getWidth() + "  " + outputSizes[i].getHeight() + "\n");
                     }
                     tvCameraParams.setText(params);
-                    //此处得到最接近的大小
+                    //此处得到最接近的大小---实际不是，就是拿了个最大值
                     photoSize = outputSizes[outputSizes.length - 1];
                     break;
                 }
@@ -272,6 +273,7 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
         }
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         currentFile = new File(file, System.currentTimeMillis() + ".jpg");
+        Log.d(TAG, "systemCameraTakePicture: " + currentFile.getAbsolutePath());
         //系统版本低于7.0时把file转为Uri对象（这个Uri标示着这个对象的真实路径），高于7.0时会认为此方式不安全，需要使用内容提供者
         if (Build.VERSION.SDK_INT >= 24) {
             Log.d(TAG, "systemCameraTakePicture: >= 24");
@@ -313,13 +315,13 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
                         "无名：" + new Random().nextInt(100), "描述");
                 //但是这里发广播不起作用
                 Intent intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-                Uri uri = FileProvider.getUriForFile(this, authority, currentFile);
-//                Uri uri = Uri.fromFile(currentFile);
+//                Uri uri = FileProvider.getUriForFile(this, authority, currentFile);
+                Uri uri = Uri.fromFile(currentFile);
                 intent.setData(uri);
                 sendBroadcast(intent);
 ////                Log.d(TAG, "onActivityResult---imagePath: "+imagePath);
                 MyMediaScanner scanner = new MyMediaScanner(this);
-                scanner.scanFileAndType(new String[]{currentFile.getAbsolutePath()},new String[]{"image/jpeg"});
+                scanner.scanFileAndType(new String[]{currentFile.getAbsolutePath()}, new String[]{"image/jpeg"});
                 //还有一个办法就是：直接把文件路径写在相册目录下-DCIM/Camera/xxx.jpg，然后再扫描更新
                 break;
         }
@@ -354,6 +356,7 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
             imageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
                 @Override
                 public void onImageAvailable(ImageReader reader) {
+                    Log.d(TAG, "onImageAvailable: ");
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                         cameraDevice.close();
                     }
@@ -406,7 +409,7 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
                         if (null == cameraDevice)
                             return;
                         // 当摄像头已经准备好时，开始显示预览
-                        CameraRecordVideoActivity.this.cameraCaptureSession = cameraCaptureSession;
+                        CameraRecordAudioActivity.this.cameraCaptureSession = cameraCaptureSession;
                         try {
                             //自动对焦
                             previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
@@ -425,17 +428,17 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
                                     return true;
                                 }
                             });
-                        } catch (CameraAccessException e) {
+                        } catch (Exception e) {
                             e.printStackTrace();
                         }
                     }
 
                     @Override
                     public void onConfigureFailed(CameraCaptureSession cameraCaptureSession) {
-                        Toast.makeText(CameraRecordVideoActivity.this, "配置失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(CameraRecordAudioActivity.this, "配置失败", Toast.LENGTH_SHORT).show();
                     }
                 }, mainHandler);
-            } catch (CameraAccessException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -474,7 +477,7 @@ public class CameraRecordVideoActivity extends BaseActivity<CameraPresenter> {
     }
 
     public static void start(Context context) {
-        Intent starter = new Intent(context, CameraRecordVideoActivity.class);
+        Intent starter = new Intent(context, CameraRecordAudioActivity.class);
         context.startActivity(starter);
     }
 }
