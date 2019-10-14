@@ -10,7 +10,11 @@ import android.media.MediaExtractor;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.TextureView;
 import android.view.View;
+import android.view.ViewGroup;
 
 import com.example.audiovideox.R;
 import com.example.audiovideox.util.cache.VideoUtil;
@@ -28,12 +32,14 @@ public class MediaExtractorActivity extends AppCompatActivity {
     private RecyclerView.LayoutManager layoutManager;
     private VideosAdapter adapter;
     private List<String[]> list = new ArrayList<>();
+    private TextureView textureView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_media_extractor);
         recyclerView = findViewById(R.id.recycler_view_videos);
+        textureView = findViewById(R.id.texture_view);
         layoutManager = new LinearLayoutManager(this);
         getVideos();
         adapter = new VideosAdapter(list, this, R.layout.item_layout_tv);
@@ -76,10 +82,25 @@ public class MediaExtractorActivity extends AppCompatActivity {
     }
 
     void playVideo(final String path) {
-        new Thread(){
+        textureView.setVisibility(View.VISIBLE);
+        new Thread() {
             @Override
             public void run() {
-                VideoUtil.playVideo(path);
+                VideoUtil.playVideo(path, textureView, new VideoUtil.IVideoSize() {
+                    @Override
+                    public void getWidthHeight(final int width, final int height) {
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                //设置surface大小（这里参考下grafika-master中的设置方式）
+                                ViewGroup.LayoutParams layoutParams = textureView.getLayoutParams();
+                                float scale = height / width;
+                                layoutParams.height = (int) (scale * layoutParams.width);
+                                textureView.setLayoutParams(layoutParams);
+                            }
+                        });
+                    }
+                });
             }
         }.start();
     }
