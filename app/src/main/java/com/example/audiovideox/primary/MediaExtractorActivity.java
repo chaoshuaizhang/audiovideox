@@ -75,7 +75,6 @@ public class MediaExtractorActivity extends AppCompatActivity {
                 break;
             case R.id.playaudio_btn:
                 //只播放音频
-                playAudio(adapter.getSelectedPath());
                 break;
             default:
                 break;
@@ -102,15 +101,6 @@ public class MediaExtractorActivity extends AppCompatActivity {
                         });
                     }
                 });
-            }
-        }.start();
-    }
-
-    void playAudio(final String path){
-        new Thread(){
-            @Override
-            public void run() {
-                VideoUtil.playAudio(path);
             }
         }.start();
     }
