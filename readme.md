@@ -56,6 +56,9 @@ https://juejin.im/post/5c778523e51d45063631172d
 >目前理解的大致意思就是合成音频、视频文件，组成新的资源
 ### MediaCodec
 
+### MediaExtractor结合MediaCodec播放音视频
+https://www.jianshu.com/p/ec5fd369c518
+
 ### 遇到的问题
 1. jdk问题
 ```java

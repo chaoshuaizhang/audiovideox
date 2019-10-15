@@ -8,6 +8,7 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaCodec;
+import android.media.MediaCodecInfo;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.media.MediaMetadataRetriever;
@@ -50,17 +51,17 @@ public class VideoUtil {
                 mediaExtractor.setDataSource(path);
                 //得到资源的通道数
                 int trackCount = mediaExtractor.getTrackCount();
-                for (int i = 0; i < trackCount; i++) {
+                for (int trackIndex = 0; trackIndex < trackCount; trackIndex++) {
                     //得到通道的一些参数
-                    MediaFormat trackFormat = mediaExtractor.getTrackFormat(i);
+                    MediaFormat trackFormat = mediaExtractor.getTrackFormat(trackIndex);
                     int width = trackFormat.getInteger(MediaFormat.KEY_WIDTH);
                     int height = trackFormat.getInteger(MediaFormat.KEY_HEIGHT);
                     videoSize.getWidthHeight(width, height);
                     String mime = trackFormat.getString(MediaFormat.KEY_MIME);
                     Log.d(TAG, "playVideo: " + mime);
                     if (mime.contains("video")) {
-                        mediaExtractor.selectTrack(i);
-                        doExtract(mediaExtractor, trackFormat, mime, textureView, i);
+                        mediaExtractor.selectTrack(trackIndex);
+                        doExtract(mediaExtractor, trackFormat, mime, textureView, trackIndex);
                         break;
                     }
                 }
@@ -87,110 +88,37 @@ public class VideoUtil {
      * @param trackIndex
      */
     private static void doExtract(MediaExtractor mediaExtractor, MediaFormat trackFormat, String mime, TextureView textureView, int trackIndex) {
-        SpeedControlCallback callback = new SpeedControlCallback();
-        callback.setFixedPlaybackRate(20);
-        int inputChunk = 0;
-        long firstInputTimeNsec = -1;
-        MediaCodec mediaCodec = null;
         try {
-            //创建解码器
-            mediaCodec = MediaCodec.createDecoderByType(mime);
-            SurfaceTexture surfaceTexture = textureView.getSurfaceTexture();
-            Surface surface = new Surface(surfaceTexture);
-            mediaCodec.configure(trackFormat, surface, null, 0);
-            //启动解码器MediaCodec
-            mediaCodec.start();
-            //得到输入缓冲区的集合
-            ByteBuffer[] decoderInputBuffers = mediaCodec.getInputBuffers();
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
-                //输入缓冲区是否已满
-                boolean inBufferDone = false;
-                //输出缓冲区是否已满
-                boolean outBufferDone = false;
-
-                while (!outBufferDone) {
-                    if (!inBufferDone) {
-                        int dequeueInputBuffer = mediaCodec.dequeueInputBuffer(10000);
-                        if (dequeueInputBuffer >= 0) {
-                            if (firstInputTimeNsec == -1) {
-                                firstInputTimeNsec = System.nanoTime();
-                            }
-                            ByteBuffer inputBuf = decoderInputBuffers[dequeueInputBuffer];
-                            int chunkSize = mediaExtractor.readSampleData(inputBuf, 0);
-                            if (chunkSize < 0) {
-                                mediaCodec.queueInputBuffer(dequeueInputBuffer, 0, 0, 0L,
-                                        MediaCodec.BUFFER_FLAG_END_OF_STREAM);
-                                inBufferDone = true;
-                            } else {
-                                if (mediaExtractor.getSampleTrackIndex() != trackIndex) {
-                                    Log.w(TAG, "WEIRD: got sample from track " +
-                                            mediaExtractor.getSampleTrackIndex() + ", expected " + trackIndex);
-                                }
-                                long presentationTimeUs = mediaExtractor.getSampleTime();
-                                mediaCodec.queueInputBuffer(dequeueInputBuffer, 0, chunkSize,
-                                        presentationTimeUs, 0);
-                                inputChunk++;
-                                mediaExtractor.advance();
-                            }
-                        }
+            if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                //创建mediaCodec
+                MediaCodec mediaCodec = MediaCodec.createDecoderByType(mime);
+                Surface surface = new Surface(textureView.getSurfaceTexture());
+                mediaCodec.configure(trackFormat, surface, null, 0);
+                mediaCodec.start();
+                boolean isVideoEOS = false;
+                MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
+                long timeMillis = System.currentTimeMillis();
+                while (true) {
+                    if (!isVideoEOS) {
+                        isVideoEOS = decodeMediaData(mediaExtractor, mediaCodec);
                     }
-
-                    if (!outBufferDone) {
-                        int decoderStatus = mediaCodec.dequeueOutputBuffer(mBufferInfo, 10000);
-                        if (decoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                            // no output available yet
-                        } else if (decoderStatus == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
-                            // not important for us, since we're using Surface
-                        } else if (decoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                            MediaFormat newFormat = mediaCodec.getOutputFormat();
-                        } else if (decoderStatus < 0) {
-                            throw new RuntimeException(
-                                    "unexpected result from decoder.dequeueOutputBuffer: " +
-                                            decoderStatus);
-                        } else { // decoderStatus >= 0
-                            if (firstInputTimeNsec != 0) {
-                                // Log the delay from the first buffer of input to the first buffer
-                                // of output.
-                                long nowNsec = System.nanoTime();
-                                Log.d(TAG, "startup lag " + ((nowNsec - firstInputTimeNsec) / 1000000.0) + " ms");
-                                firstInputTimeNsec = 0;
-                            }
-                            boolean doLoop = false;
-                            if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                                outBufferDone = true;
-                            }
-
-                            boolean doRender = (mBufferInfo.size != 0);
-                            if (doRender && callback != null) {
-                                callback.preRender(mBufferInfo.presentationTimeUs);
-                            }
-                            mediaCodec.releaseOutputBuffer(decoderStatus, doRender);
-                            if (doRender && callback != null) {
-                                callback.postRender();
-                            }
-
-                            if (doLoop) {
-                                Log.d(TAG, "Reached EOS, looping");
-                                mediaExtractor.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
-                                inBufferDone = false;
-                                mediaCodec.flush();    // reset decoder state
-                            }
-                        }
+                    int decodedBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 10000);
+                    switch (decodedBufferIndex) {
+                        case MediaCodec.INFO_TRY_AGAIN_LATER:
+                            break;
+                        case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
+                            break;
+                        case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
+                            break;
+                        default:
+                            decodeDelay(bufferInfo, timeMillis);
+                            mediaCodec.releaseOutputBuffer(decodedBufferIndex, true);
+                            break;
                     }
                 }
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            if (mediaCodec != null) {
-                mediaCodec.stop();
-                mediaCodec.release();
-                mediaCodec = null;
-            }
-            if (mediaExtractor != null) {
-                mediaExtractor.release();
-                mediaExtractor = null;
-            }
         }
     }
 
@@ -237,16 +165,10 @@ public class VideoUtil {
                         break;
                     }
                 }
-                audioCodec.start();
                 MediaCodec.BufferInfo audioBufferInfo = new MediaCodec.BufferInfo();
+                audioCodec.start();
                 boolean isAudioEOS = false;
                 long startMs = System.currentTimeMillis();
-                //int i = audioCodec.dequeueInputBuffer(10000);
-                //ByteBuffer buffer = audioCodec.getInputBuffer(i);
-                //int capacity = buffer.capacity();
-                //if (capacity <= 0) {
-                //    capacity = minBufferSize;
-                //}
                 while (true) {
                     // 解码
                     if (!isAudioEOS) {
@@ -327,14 +249,15 @@ public class VideoUtil {
 
     private static void decodeDelay(MediaCodec.BufferInfo bufferInfo, long startMillis) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-            while (bufferInfo.presentationTimeUs / 1000 > System.currentTimeMillis() - startMillis) {
-                try {
-                    sleep(10);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    break;
-                }
-            }
+//            while (bufferInfo.presentationTimeUs / 1000 > System.currentTimeMillis() - startMillis) {
+//                try {
+//                    Log.d(TAG, "decodeDelay: " + Thread.currentThread().getName());
+//                    sleep(10);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                    break;
+//                }
+//            }
         }
     }
 

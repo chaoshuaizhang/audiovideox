@@ -24,6 +24,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class MediaExtractorActivity extends AppCompatActivity {
 
@@ -72,6 +77,7 @@ public class MediaExtractorActivity extends AppCompatActivity {
                 break;
             case R.id.play_btn:
                 //播放完整视频
+                playVideoAudio(adapter.getSelectedPath());
                 break;
             case R.id.playaudio_btn:
                 //只播放音频
@@ -106,13 +112,45 @@ public class MediaExtractorActivity extends AppCompatActivity {
         }.start();
     }
 
-    void playAudio(final String path){
-        new Thread(){
+    void playAudio(final String path) {
+        new Thread() {
             @Override
             public void run() {
                 VideoUtil.playAudio(path);
             }
         }.start();
+    }
+
+    void playVideoAudio(final String path) {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(2, 2, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+        executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                Thread.currentThread().setName("播放音频-----:");
+                VideoUtil.playAudio(path);
+            }
+        });
+        executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                Thread.currentThread().setName("播放视频+++++:");
+                VideoUtil.playVideo(path, textureView, new VideoUtil.IVideoSize() {
+                    @Override
+                    public void getWidthHeight(final int width, final int height) {
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                //设置surface大小（这里参考下grafika-master中的设置方式）
+                                ViewGroup.LayoutParams layoutParams = textureView.getLayoutParams();
+                                float scale = height / width;
+                                layoutParams.height = (int) (scale * layoutParams.width);
+                                textureView.setLayoutParams(layoutParams);
+                            }
+                        });
+                    }
+                });
+            }
+        });
     }
 
     public static void start(Context context) {
