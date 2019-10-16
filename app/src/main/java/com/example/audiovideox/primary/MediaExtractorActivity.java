@@ -61,6 +61,7 @@ public class MediaExtractorActivity extends AppCompatActivity {
                 this.list.add(arr);
             }
         }
+        list.add(new String[]{"test_video.mp4", "https://shopin-images.oss-cn-beijing.aliyuncs.com/2015305/test_video.mp4"});
     }
 
     private void initMediaExtractor() {

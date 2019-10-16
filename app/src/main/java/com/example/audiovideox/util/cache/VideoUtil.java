@@ -19,16 +19,20 @@ import android.view.Surface;
 import android.view.TextureView;
 
 import com.example.audiovideox.SpeedControlCallback;
+import com.example.audiovideox.primary.view.MyPreviewVideoImage;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 
 import static java.lang.Thread.sleep;
 
 public class VideoUtil {
 
     private static final String TAG = "VideoUtil";
-    private static MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
 
     /**
      * 得到指定路径视频的某一帧
@@ -37,26 +41,60 @@ public class VideoUtil {
      * @param time
      * @return
      */
-    public static Bitmap getFrameAtTime(String path, long time) {
+    public static MyPreviewVideoImage getFrameAtTime(String path, long time) {
         MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-        retriever.setDataSource(path);
+        if (path.startsWith("http")) {
+            HashMap<String, String> params = new HashMap<>();
+            params.put("Accept-Encoding", "gzip, deflate, sdch");
+            params.put("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+            retriever.setDataSource(path, params);
+        } else {
+            retriever.setDataSource(path);
+        }
         Bitmap frameAtTime = retriever.getFrameAtTime(time);
-        return frameAtTime;
+        MyPreviewVideoImage image = new MyPreviewVideoImage(frameAtTime);
+        String s = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+        image.setTime(Long.parseLong(s));
+        retriever.release();
+        return image;
+    }
+
+    public static JSONObject getWidthHeight(String path) {
+        JSONObject obj = new JSONObject();
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        retriever.setDataSource(path, new HashMap<String, String>());
+        int width = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+        int height = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+        try {
+            obj.put("width", width);
+            obj.put("height", height);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return obj;
     }
 
     public static void playVideo(String path, TextureView textureView, IVideoSize videoSize) {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
             MediaExtractor mediaExtractor = new MediaExtractor();
             try {
+                //设置数据的来源（本地资源文件或网络url）
                 mediaExtractor.setDataSource(path);
-                //得到资源的通道数
+                //得到资源的轨道数（音频轨道、视频轨道）
                 int trackCount = mediaExtractor.getTrackCount();
                 for (int trackIndex = 0; trackIndex < trackCount; trackIndex++) {
-                    //得到通道的一些参数
+                    //选择自己需要的轨道的一些元数据信息(信息包括：采样率、声道数量、资源宽高、资源类型MIME、缓冲区大小、比特率)
                     MediaFormat trackFormat = mediaExtractor.getTrackFormat(trackIndex);
-                    int width = trackFormat.getInteger(MediaFormat.KEY_WIDTH);
-                    int height = trackFormat.getInteger(MediaFormat.KEY_HEIGHT);
-                    videoSize.getWidthHeight(width, height);
+                    if (path.startsWith("http")) {
+                        //网络资源
+                        JSONObject widthHeight = getWidthHeight(path);
+                        videoSize.getWidthHeight(widthHeight.getInt("width"), widthHeight.getInt("height"));
+                    } else {
+                        //本地资源
+                        int width = trackFormat.getInteger(MediaFormat.KEY_WIDTH);
+                        int height = trackFormat.getInteger(MediaFormat.KEY_HEIGHT);
+                        videoSize.getWidthHeight(width, height);
+                    }
                     String mime = trackFormat.getString(MediaFormat.KEY_MIME);
                     Log.d(TAG, "playVideo: " + mime);
                     if (mime.contains("video")) {
@@ -160,13 +198,23 @@ public class VideoUtil {
                         //audioTrack.setStereoVolume(0.1f,1);
                         audioTrack.setVolume(1);
                         audioTrack.play();
+                        //根据资源类型实例化一个MediaCodec
                         audioCodec = MediaCodec.createDecoderByType(mime);
+                        /*
+                         * 配置编码器，四个参数
+                         * format：为MediaCodec配置的编码、解码器
+                         * surface：是否需要渲染（播放视频时需要有一个surface来承接输出的数据，只播放音频时传null）
+                         * crypto：加密对象-保证数据解码的安全（对于非安全编解码器，传null）
+                         * flags：
+                         * */
                         audioCodec.configure(mediaFormat, null, null, 0);
                         break;
                     }
                 }
+                //
                 MediaCodec.BufferInfo audioBufferInfo = new MediaCodec.BufferInfo();
                 audioCodec.start();
+                //音频资源读取完成
                 boolean isAudioEOS = false;
                 long startMs = System.currentTimeMillis();
                 while (true) {
@@ -177,8 +225,8 @@ public class VideoUtil {
                     // 获取解码后的数据
                     int outputBufferIndex = audioCodec.dequeueOutputBuffer(audioBufferInfo, 10000);
                     //缓冲区大小相差很大，但是都可以播放，区别是？
-                    //byte[] mAudioOutTempBuf = new byte[capacity];
-                    byte[] mAudioOutTempBuf = new byte[minBufferSize];
+                    //byte[] audioOutTempBuf = new byte[capacity];
+                    byte[] audioOutTempBuf = new byte[minBufferSize];
                     switch (outputBufferIndex) {
                         case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
                             //
@@ -195,14 +243,14 @@ public class VideoUtil {
                             decodeDelay(audioBufferInfo, startMs);
                             // 如果解码成功，则将解码后的音频PCM数据用AudioTrack播放出来
                             if (audioBufferInfo.size > 0) {
-                                if (mAudioOutTempBuf.length < audioBufferInfo.size) {
-                                    mAudioOutTempBuf = new byte[audioBufferInfo.size];
+                                if (audioOutTempBuf.length < audioBufferInfo.size) {
+                                    audioOutTempBuf = new byte[audioBufferInfo.size];
                                 }
                                 outputBuffer.position(0);
-                                outputBuffer.get(mAudioOutTempBuf, 0, audioBufferInfo.size);
+                                outputBuffer.get(audioOutTempBuf, 0, audioBufferInfo.size);
                                 outputBuffer.clear();
                                 if (audioTrack != null)
-                                    audioTrack.write(mAudioOutTempBuf, 0, audioBufferInfo.size);
+                                    audioTrack.write(audioOutTempBuf, 0, audioBufferInfo.size);
                             }
                             // 释放资源
                             audioCodec.releaseOutputBuffer(outputBufferIndex, false);
@@ -249,15 +297,15 @@ public class VideoUtil {
 
     private static void decodeDelay(MediaCodec.BufferInfo bufferInfo, long startMillis) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-//            while (bufferInfo.presentationTimeUs / 1000 > System.currentTimeMillis() - startMillis) {
-//                try {
-//                    Log.d(TAG, "decodeDelay: " + Thread.currentThread().getName());
-//                    sleep(10);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                    break;
-//                }
-//            }
+            while (bufferInfo.presentationTimeUs / 1000 > System.currentTimeMillis() - startMillis) {
+                try {
+                    Log.d(TAG, "decodeDelay: " + Thread.currentThread().getName());
+                    sleep(10);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                    break;
+                }
+            }
         }
     }
 
