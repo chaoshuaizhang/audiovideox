@@ -1,5 +1,6 @@
 package com.example.audiovideox.primary;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -21,6 +22,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * MediaExtractor可以读取到媒体文件的信息，比如读取出来视频，音频，然后用对应的播放器播放
+ */
 public class MediaExtractorActivity extends AppCompatActivity {
 
     private MediaExtractor mediaExtractor;
@@ -87,6 +91,17 @@ public class MediaExtractorActivity extends AppCompatActivity {
     public static void start(Context context) {
         Intent starter = new Intent(context, MediaExtractorActivity.class);
         context.startActivity(starter);
+
+        //构造一个Builder实例
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        //为这个Builder实例设置一系列属性
+        builder.setTitle("")
+                .setIcon(0)
+                .setCancelable(false)
+                .setMessage(0);
+        //依据builder的一系列属性创建一个dialog（在create方法中完成）
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
 }

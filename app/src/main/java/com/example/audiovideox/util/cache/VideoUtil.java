@@ -31,7 +31,6 @@ public class VideoUtil {
     public static void playVideo(String path) {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
             MediaExtractor mediaExtractor = new MediaExtractor();
-            int framerate = 0;
             try {
                 mediaExtractor.setDataSource(path);
                 //得到资源的通道数
@@ -41,10 +40,15 @@ public class VideoUtil {
                     MediaFormat trackFormat = mediaExtractor.getTrackFormat(i);
                     String format = trackFormat.getString(MediaFormat.KEY_MIME);
                     Log.d(TAG, "playVideo: " + format);
-                    //if (format.contains("video")) {
+                    if (format.contains("video")) {
+                        int width = trackFormat.getInteger(MediaFormat.KEY_WIDTH);
+                        int height = trackFormat.getInteger(MediaFormat.KEY_HEIGHT);
+                        //单位是微秒，需要转换为秒
+                        long time = trackFormat.getLong(MediaFormat.KEY_DURATION) / 1000 / 1000;
                         mediaExtractor.selectTrack(i);
+
                         break;
-                    //}
+                    }
                 }
                 ByteBuffer buffer = ByteBuffer.allocate(500 * 1024);
                 while ((mediaExtractor.readSampleData(buffer, 0)) > 0) {
