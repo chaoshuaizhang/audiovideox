@@ -7,15 +7,17 @@ import android.os.Looper;
 import android.util.Log;
 import android.widget.ImageView;
 
+import com.example.audiovideox.primary.view.MyPreviewVideoImage;
+
 public class ImageLoaderUtil {
 
     private static final String TAG = "ImageLoaderUtil";
 
     private static Handler handler = new Handler(Looper.getMainLooper());
 
-    private ImageCache imageCache;
+    private ImageCache<MyPreviewVideoImage> imageCache;
 
-    public ImageLoaderUtil(ImageCache imageCache) {
+    public ImageLoaderUtil(ImageCache<MyPreviewVideoImage> imageCache) {
         this.imageCache = imageCache;
     }
 
@@ -41,24 +43,26 @@ public class ImageLoaderUtil {
     /**
      * 加载本地图片
      */
-    public void displayVideoFrameByPath(ImageView view, String path, long time) {
-        Bitmap bitmap = imageCache.get(path);
-        if (bitmap == null) {
-            bitmap = VideoUtil.getFrameAtTime(path, time);
-            Log.d(TAG, "displayVideoFrameByPath: " + (bitmap.getWidth() * bitmap.getHeight() / 1024));
-            imageCache.put(path, bitmap);
+    public MyPreviewVideoImage displayVideoFrameByPath(ImageView view, String path, long time) {
+        MyPreviewVideoImage videoImage = imageCache.get(path);
+        if (videoImage == null) {
+            videoImage = VideoUtil.getFrameAtTime(path, time);
+            Log.d(TAG, "displayVideoFrameByPath: " + (videoImage.getBitmap().getWidth() *
+                    videoImage.getBitmap().getHeight() / 1024));
+            imageCache.put(path, videoImage);
         }
-        displayImage(view, bitmap);
+        displayImage(view, videoImage.getBitmap());
+        return videoImage;
     }
 
     /**
      * 加载本地图片
      */
     public void displayImageByFilePath(ImageView view, String path) {
-        Bitmap bitmap = imageCache.get(path);
+        Bitmap bitmap = imageCache.get(path).getBitmap();
         if (bitmap == null) {
             bitmap = BitmapFactory.decodeFile(path);
-            imageCache.put(path, bitmap);
+            imageCache.put(path, new MyPreviewVideoImage(bitmap));
         }
         displayImage(view, bitmap);
     }
@@ -67,5 +71,7 @@ public class ImageLoaderUtil {
      * 加载网络图片
      */
     public void displayImageByNetUrl(ImageView view, String url) {
+
     }
+
 }

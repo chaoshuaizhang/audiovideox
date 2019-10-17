@@ -3,26 +3,17 @@ package com.example.audiovideox.util.cache;
 import android.graphics.Bitmap;
 import android.util.LruCache;
 
-public class MemoryCache implements ImageCache {
-    private static LruCache<String, Bitmap> lruCache;
+public abstract class MemoryCache<T> implements ImageCache<T> {
+    protected LruCache<String, T> lruCache;
 
-    static {
-        lruCache = new LruCache<String, Bitmap>((int) (Runtime.getRuntime().maxMemory() / 1024 / 4)) {
+    public MemoryCache() {
+        lruCache = new LruCache<String, T>((int) (Runtime.getRuntime().maxMemory() / 1024 / 8)) {
             @Override
-            protected int sizeOf(String key, Bitmap value) {
-                //得到当前图片大小 单位KB
-                return value.getWidth() * value.getHeight() / 1024;
+            protected int sizeOf(String key, T value) {
+                return MemoryCache.this.sizeOf(key, value);
             }
         };
     }
 
-    @Override
-    public void put(String name, Bitmap bitmap) {
-        lruCache.put(name, bitmap);
-    }
-
-    @Override
-    public Bitmap get(String name) {
-        return lruCache.get(name);
-    }
+    protected abstract int sizeOf(String key, T t);
 }

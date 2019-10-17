@@ -2,9 +2,9 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:orientation="horizontal"
     android:paddingTop="2dp"
-    android:paddingBottom="2dp"
-    android:orientation="horizontal">
+    android:paddingBottom="2dp">
 
     <RadioButton
         android:id="@+id/radio_btn"
@@ -20,11 +20,19 @@
         android:layout_marginLeft="10dp"
         android:layout_weight="1" />
 
+    <TextView
+        android:id="@+id/tv_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:paddingLeft="5dp"
+        android:paddingRight="5dp" />
+
     <ImageView
         android:id="@+id/img_preview"
-        android:scaleType="centerCrop"
         android:layout_width="50dp"
         android:layout_height="75dp"
-        android:layout_marginRight="20dp" />
+        android:layout_marginRight="20dp"
+        android:scaleType="centerCrop" />
 
 </LinearLayout>

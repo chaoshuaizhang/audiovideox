@@ -17,8 +17,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.audiovideox.BaseRecyclerAdapter;
 import com.example.audiovideox.R;
+import com.example.audiovideox.primary.view.MyPreviewVideoImage;
 import com.example.audiovideox.util.cache.ImageLoaderUtil;
 import com.example.audiovideox.util.cache.MemoryCache;
+import com.example.audiovideox.util.cache.MyBitmapCache;
 
 import java.util.List;
 
@@ -36,7 +38,7 @@ public class VideosAdapter extends BaseRecyclerAdapter<String[], VideosAdapter.M
 
     public VideosAdapter(List<String[]> datas, Context context, int resId) {
         super(datas, context, resId);
-        imageLoader = new ImageLoaderUtil(new MemoryCache());
+        imageLoader = new ImageLoaderUtil(new MyBitmapCache());
     }
 
     @Override
@@ -55,12 +57,13 @@ public class VideosAdapter extends BaseRecyclerAdapter<String[], VideosAdapter.M
                     selectedRB = holder.radioButton;
                     //但是这块儿不会回掉onCheckedChanged方法
                     selectedRB.setChecked(true);
-                    selectedPath =datas.get(selectedPosition)[1];
+                    selectedPath = datas.get(selectedPosition)[1];
                 }
             }
         });
         holder.radioButton.setChecked(position == selectedPosition);
-        imageLoader.displayVideoFrameByPath(holder.imageView, datas.get(position)[1], 10);
+        MyPreviewVideoImage image = imageLoader.displayVideoFrameByPath(holder.imageView, datas.get(position)[1], 10);
+        holder.timeTv.setText(String.valueOf(image.getTime()));
     }
 
     @Override
@@ -70,6 +73,7 @@ public class VideosAdapter extends BaseRecyclerAdapter<String[], VideosAdapter.M
 
     class MyViewHolder extends BaseRecyclerAdapter.BaseRecyclerHolder {
         private TextView textView;
+        private TextView timeTv;
         private ImageView imageView;
         private RadioButton radioButton;
 
@@ -78,6 +82,7 @@ public class VideosAdapter extends BaseRecyclerAdapter<String[], VideosAdapter.M
             textView = itemView.findViewById(R.id.tv);
             radioButton = itemView.findViewById(R.id.radio_btn);
             imageView = itemView.findViewById(R.id.img_preview);
+            timeTv = itemView.findViewById(R.id.tv_time);
         }
     }
 
