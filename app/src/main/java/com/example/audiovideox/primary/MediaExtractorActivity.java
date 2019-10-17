@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -88,9 +89,18 @@ public class MediaExtractorActivity extends AppCompatActivity {
                 //只播放音频
                 playAudio(adapter.getSelectedPath());
                 break;
+            case R.id.compose_video_audio_btn:
+                composeVideoAudio(adapter.getSelectedPath(), adapter.getSelectedPath2());
+                break;
             default:
                 break;
         }
+    }
+
+    private void composeVideoAudio(String videoPath, String audioPath) {
+        File mountedDir = new File(getExternalFilesDir(Environment.MEDIA_MOUNTED), "mediavideos");
+        File file = new File(mountedDir, "compose-" + new Random().nextInt(10000) + ".mp4");
+        VideoUtil.composeVideoAudio(videoPath, audioPath, file.getAbsolutePath());
     }
 
     void playVideo(final String path) {

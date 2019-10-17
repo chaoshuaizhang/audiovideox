@@ -58,6 +58,18 @@
         android:textColor="#FFFFFF"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toRightOf="@id/play_btn"
+        app:layout_constraintRight_toLeftOf="@id/compose_video_audio_btn" />
+
+    <Button
+        android:id="@+id/compose_video_audio_btn"
+        android:layout_width="75dp"
+        android:layout_height="75dp"
+        android:background="@drawable/ic_round_bg"
+        android:onClick="btnClick"
+        android:text="合成\n音视频"
+        android:textColor="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/playaudio_btn"
         app:layout_constraintRight_toRightOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -53,7 +53,7 @@ https://juejin.im/post/5c778523e51d45063631172d
 >从音视频资源文件分离音频和视频
 
 ### MediaMuxer
->目前理解的大致意思就是合成音频、视频文件，组成新的资源
+>目前理解的大致意思就是合成音频、视频文件，组成新的资源，只支持合成一个视频轨道和一个音频轨道。
 ### MediaCodec
 
 ### MediaExtractor结合MediaCodec播放音视频

@@ -12,7 +12,9 @@ import android.media.MediaCodecInfo;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
 import android.media.MediaMetadataRetriever;
+import android.media.MediaMuxer;
 import android.os.Build;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Surface;
@@ -24,6 +26,7 @@ import com.example.audiovideox.primary.view.MyPreviewVideoImage;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -307,6 +310,53 @@ public class VideoUtil {
                 }
             }
         }
+    }
+
+    /**
+     * 使用MediaMuxer来实现将视频流和音频流合成输入到mp4容器中
+     *
+     * @param videoPath
+     * @param audioPath
+     */
+    public static void composeVideoAudio(String videoPath, String audioPath, String composePath) {
+        MediaFormat videoFormat = getTrack(videoPath, "video");
+        MediaFormat audioFormat = getTrack(audioPath, "audio");
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR2) {
+            try {
+                MediaMuxer muxer = new MediaMuxer(composePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+                int videoTrackIndex = muxer.addTrack(videoFormat);
+                int audioTrackIndex = muxer.addTrack(audioFormat);
+                muxer.start();
+                ByteBuffer buffer = ByteBuffer.allocate(500 * 1024);
+                MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
+                while (true) {
+                    muxer.writeSampleData(videoTrackIndex, buffer, bufferInfo);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static MediaFormat getTrack(String path, String mime) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                MediaExtractor extractor = new MediaExtractor();
+                extractor.setDataSource(path);
+                int videoTrackCount = extractor.getTrackCount();
+                for (int i = 0; i < videoTrackCount; i++) {
+                    MediaFormat trackFormat = extractor.getTrackFormat(i);
+                    //选择需要的轨道
+                    if (trackFormat.getString(MediaFormat.KEY_MIME).contains(mime)) {
+                        extractor.selectTrack(i);
+                        return trackFormat;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public interface IVideoSize {

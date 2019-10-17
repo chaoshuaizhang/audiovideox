@@ -31,9 +31,14 @@ public class VideosAdapter extends BaseRecyclerAdapter<String[], VideosAdapter.M
     private int selectedPosition = -1;
     private ImageLoaderUtil imageLoader;
     private String selectedPath;
+    private String selectedPath2;
 
     public String getSelectedPath() {
         return selectedPath;
+    }
+
+    public String getSelectedPath2() {
+        return selectedPath2;
     }
 
     public VideosAdapter(List<String[]> datas, Context context, int resId) {
@@ -58,6 +63,7 @@ public class VideosAdapter extends BaseRecyclerAdapter<String[], VideosAdapter.M
                     //但是这块儿不会回掉onCheckedChanged方法
                     selectedRB.setChecked(true);
                     selectedPath = datas.get(selectedPosition)[1];
+                    selectedPath2 = datas.get(selectedPosition + 1)[1];
                 }
             }
         });
