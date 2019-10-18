@@ -99,8 +99,10 @@ public class MediaExtractorActivity extends AppCompatActivity {
 
     private void composeVideoAudio(String videoPath, String audioPath) {
         File mountedDir = new File(getExternalFilesDir(Environment.MEDIA_MOUNTED), "mediavideos");
-        File file = new File(mountedDir, "compose-" + new Random().nextInt(10000) + ".mp4");
-        VideoUtil.composeVideoAudio(videoPath, audioPath, file.getAbsolutePath());
+        File file = new File(mountedDir, "compose-" + new Random().nextInt(9999999) + ".mp4");
+        VideoUtil.compose(videoPath, audioPath, file.getAbsolutePath());
+        File file1 = new File(mountedDir, "my-compose-" + new Random().nextInt(9999999) + ".mp4");
+        VideoUtil.composeVideoAudio(videoPath, audioPath, file1.getAbsolutePath());
     }
 
     void playVideo(final String path) {
@@ -171,17 +173,6 @@ public class MediaExtractorActivity extends AppCompatActivity {
     public static void start(Context context) {
         Intent starter = new Intent(context, MediaExtractorActivity.class);
         context.startActivity(starter);
-
-        //构造一个Builder实例
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        //为这个Builder实例设置一系列属性
-        builder.setTitle("")
-                .setIcon(0)
-                .setCancelable(false)
-                .setMessage(0);
-        //依据builder的一系列属性创建一个dialog（在create方法中完成）
-        AlertDialog dialog = builder.create();
-        dialog.show();
     }
 
 }

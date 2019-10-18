@@ -47,6 +47,9 @@ public class ImageLoaderUtil {
         MyPreviewVideoImage videoImage = imageCache.get(path);
         if (videoImage == null) {
             videoImage = VideoUtil.getFrameAtTime(path, time);
+            if (videoImage == null || videoImage.getBitmap() == null) {
+                return null;
+            }
             Log.d(TAG, "displayVideoFrameByPath: " + (videoImage.getBitmap().getWidth() *
                     videoImage.getBitmap().getHeight() / 1024));
             imageCache.put(path, videoImage);

@@ -59,6 +59,9 @@ https://juejin.im/post/5c778523e51d45063631172d
 ### MediaExtractor结合MediaCodec播放音视频
 https://www.jianshu.com/p/ec5fd369c518
 
+//这个不错
+https://blog.csdn.net/zhi184816/article/details/52514138
+
 ### 遇到的问题
 1. jdk问题
 ```java

@@ -139,10 +139,8 @@ public class VideoUtil {
                 boolean isVideoEOS = false;
                 MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
                 long timeMillis = System.currentTimeMillis();
-                while (true) {
-                    if (!isVideoEOS) {
-                        isVideoEOS = decodeMediaData(mediaExtractor, mediaCodec);
-                    }
+                while (!isVideoEOS) {
+                    isVideoEOS = decodeMediaData(mediaExtractor, mediaCodec);
                     int decodedBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 10000);
                     switch (decodedBufferIndex) {
                         case MediaCodec.INFO_TRY_AGAIN_LATER:
@@ -156,6 +154,7 @@ public class VideoUtil {
                             mediaCodec.releaseOutputBuffer(decodedBufferIndex, true);
                             break;
                     }
+                    Log.d(TAG, "doExtract: INFO_OUTPUT_BUFFERS_CHANGED");
                 }
             }
         } catch (Exception e) {
@@ -225,7 +224,7 @@ public class VideoUtil {
                     if (!isAudioEOS) {
                         isAudioEOS = decodeMediaData(audioExtractor, audioCodec);
                     }
-                    // 获取解码后的数据
+                    // 获取解码后的数据索引
                     int outputBufferIndex = audioCodec.dequeueOutputBuffer(audioBufferInfo, 10000);
                     //缓冲区大小相差很大，但是都可以播放，区别是？
                     //byte[] audioOutTempBuf = new byte[capacity];
@@ -249,21 +248,25 @@ public class VideoUtil {
                                 if (audioOutTempBuf.length < audioBufferInfo.size) {
                                     audioOutTempBuf = new byte[audioBufferInfo.size];
                                 }
-                                outputBuffer.position(0);
+                                //没有用到（由下边的日志看出本身它每次都是0）
+                                //outputBuffer.position(0);
+                                Log.d(TAG, "playAudio: position=0 " + outputBuffer.position());
                                 outputBuffer.get(audioOutTempBuf, 0, audioBufferInfo.size);
                                 outputBuffer.clear();
+                                Log.d(TAG, "playAudio: position=0 " + outputBuffer.position());
                                 if (audioTrack != null)
                                     audioTrack.write(audioOutTempBuf, 0, audioBufferInfo.size);
                             }
-                            // 释放资源
+                            // 释放资源(会在这块儿进行播放)
                             audioCodec.releaseOutputBuffer(outputBufferIndex, false);
                             break;
                     }
 
-                    // 结尾了
+                    // 结尾了-跳出循环
                     if ((audioBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                         break;
                     }
+                    Log.d(TAG, "playAudio: BUFFER_FLAG_END_OF_STREAM");
                 }
 
                 // 释放MediaCode 和AudioTrack
@@ -303,7 +306,7 @@ public class VideoUtil {
             while (bufferInfo.presentationTimeUs / 1000 > System.currentTimeMillis() - startMillis) {
                 try {
                     Log.d(TAG, "decodeDelay: " + Thread.currentThread().getName());
-                    sleep(10);
+                    sleep(1);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     break;
@@ -319,27 +322,48 @@ public class VideoUtil {
      * @param audioPath
      */
     public static void composeVideoAudio(String videoPath, String audioPath, String composePath) {
-        MediaFormat videoFormat = getTrack(videoPath, "video");
-        MediaFormat audioFormat = getTrack(audioPath, "audio");
+        TMap videoMap = getTrack(videoPath, "video");
+        TMap audioMap = getTrack(audioPath, "audio");
+        MediaFormat videoFormat = videoMap.format;
+        MediaFormat audioFormat = audioMap.format;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR2) {
             try {
                 MediaMuxer muxer = new MediaMuxer(composePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
                 int videoTrackIndex = muxer.addTrack(videoFormat);
-                int audioTrackIndex = muxer.addTrack(audioFormat);
                 muxer.start();
                 ByteBuffer buffer = ByteBuffer.allocate(500 * 1024);
                 MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
+                long timeBeforeAdvance = videoMap.extractor.getSampleTime();
+                videoMap.extractor.advance();
+                long timeAfterAdvance = videoMap.extractor.getSampleTime();
+                long interval = timeAfterAdvance - timeBeforeAdvance;
+                videoMap.extractor.unselectTrack(videoMap.track);
+                videoMap.extractor.selectTrack(videoMap.track);
+                //开始合成视频
                 while (true) {
+                    int sampleDataSize = videoMap.extractor.readSampleData(buffer, 0);
+                    if (sampleDataSize < 0) {
+                        break;
+                    }
+                    bufferInfo.size = sampleDataSize;
+                    bufferInfo.offset = 0;
+                    bufferInfo.flags = videoMap.extractor.getSampleFlags();
+                    bufferInfo.presentationTimeUs += interval;
                     muxer.writeSampleData(videoTrackIndex, buffer, bufferInfo);
+                    videoMap.extractor.advance();
                 }
-            } catch (IOException e) {
+                muxer.stop();
+                muxer.release();
+                videoMap.extractor.release();
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
     }
 
-    private static MediaFormat getTrack(String path, String mime) {
+    private static TMap getTrack(String path, String mime) {
         try {
+            TMap tMap = new TMap();
             if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 MediaExtractor extractor = new MediaExtractor();
                 extractor.setDataSource(path);
@@ -349,7 +373,10 @@ public class VideoUtil {
                     //选择需要的轨道
                     if (trackFormat.getString(MediaFormat.KEY_MIME).contains(mime)) {
                         extractor.selectTrack(i);
-                        return trackFormat;
+                        tMap.extractor = extractor;
+                        tMap.format = trackFormat;
+                        tMap.track = i;
+                        return tMap;
                     }
                 }
             }
@@ -357,6 +384,71 @@ public class VideoUtil {
             e.printStackTrace();
         }
         return null;
+    }
+
+    public static void compose(String videoPath, String audioPath, String composePath) {
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP) {
+            try {
+                MediaExtractor videoExtractor = new MediaExtractor();
+                videoExtractor.setDataSource(videoPath);
+                MediaFormat videoFormat = null;
+                int videoTrackIndex = -1;
+                int videoTrackCount = videoExtractor.getTrackCount();
+                for (int i = 0; i < videoTrackCount; i++) {
+                    videoFormat = videoExtractor.getTrackFormat(i);
+                    String mimeType = videoFormat.getString(MediaFormat.KEY_MIME);
+                    if (mimeType.startsWith("video/")) {
+                        videoTrackIndex = i;
+                        break;
+                    }
+                }
+                videoExtractor.selectTrack(videoTrackIndex);
+                MediaCodec.BufferInfo videoBufferInfo = new MediaCodec.BufferInfo();
+                MediaCodec.BufferInfo audioBufferInfo = new MediaCodec.BufferInfo();
+
+                MediaMuxer mediaMuxer = new MediaMuxer(composePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+                int writeVideoTrackIndex = mediaMuxer.addTrack(videoFormat);
+                mediaMuxer.start();
+
+                ByteBuffer byteBuffer = ByteBuffer.allocate(500 * 1024);
+                //得到当前播放（可以理解为当前帧）的时间点
+                long frameStartTime = videoExtractor.getSampleTime();
+                //播放下一帧
+                videoExtractor.advance();
+                //得到播放上一帧前和播放上一帧后的时间间隔---得到播放一帧所需要的时间（下边设置BufferInfo时会用到）
+                long frameEndTime = videoExtractor.getSampleTime();
+                long intervalTime = Math.abs(frameEndTime - frameStartTime);
+                //因为前边已经播放了一桢了
+//                videoExtractor.unselectTrack(videoTrackIndex);
+//                videoExtractor.selectTrack(videoTrackIndex);
+                while (true) {
+                    int readVideoSampleSize = videoExtractor.readSampleData(byteBuffer, 0);
+                    if (readVideoSampleSize < 0) {
+                        //很奇怪，根据advance的定义，没有数据要读取时返回的是false，但是这里打出的是true
+                        break;
+                    }
+                    videoBufferInfo.size = readVideoSampleSize;
+                    //设置视频的总时长（依次累加每一帧的时间）
+                    videoBufferInfo.presentationTimeUs += intervalTime;
+                    videoBufferInfo.offset = 0;
+                    videoBufferInfo.flags = videoExtractor.getSampleFlags();
+                    mediaMuxer.writeSampleData(writeVideoTrackIndex, byteBuffer, videoBufferInfo);
+                    videoExtractor.advance();
+                }
+                Log.d(TAG, "compose: 跳出");
+                mediaMuxer.stop();
+                mediaMuxer.release();
+                videoExtractor.release();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    static class TMap {
+        public MediaExtractor extractor;
+        public MediaFormat format;
+        public int track = -1;
     }
 
     public interface IVideoSize {

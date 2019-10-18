@@ -69,7 +69,10 @@ public class VideosAdapter extends BaseRecyclerAdapter<String[], VideosAdapter.M
         });
         holder.radioButton.setChecked(position == selectedPosition);
         MyPreviewVideoImage image = imageLoader.displayVideoFrameByPath(holder.imageView, datas.get(position)[1], 10);
-        holder.timeTv.setText(String.valueOf(image.getTime()));
+        if (image == null) {
+            holder.timeTv.setText(String.valueOf(0));
+        } else
+            holder.timeTv.setText(String.valueOf(image.getTime()));
     }
 
     @Override
