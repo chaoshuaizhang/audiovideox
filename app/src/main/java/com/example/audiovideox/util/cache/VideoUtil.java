@@ -219,7 +219,7 @@ public class VideoUtil {
                 //音频资源读取完成
                 boolean isAudioEOS = false;
                 long startMs = System.currentTimeMillis();
-                while (true) {
+                while (true && !Thread.interrupted()) {
                     // 解码
                     if (!isAudioEOS) {
                         isAudioEOS = decodeMediaData(audioExtractor, audioCodec);
@@ -324,37 +324,64 @@ public class VideoUtil {
     public static void composeVideoAudio(String videoPath, String audioPath, String composePath) {
         TMap videoMap = getTrack(videoPath, "video");
         TMap audioMap = getTrack(audioPath, "audio");
-        MediaFormat videoFormat = videoMap.format;
-        MediaFormat audioFormat = audioMap.format;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR2) {
             try {
                 MediaMuxer muxer = new MediaMuxer(composePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-                int videoTrackIndex = muxer.addTrack(videoFormat);
+                int videoTrackIndex = muxer.addTrack(videoMap.format);
+                int audioTrackIndex = muxer.addTrack(audioMap.format);
                 muxer.start();
-                ByteBuffer buffer = ByteBuffer.allocate(500 * 1024);
-                MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
+                ByteBuffer videoBuffer = ByteBuffer.allocate(500 * 1024);
+                ByteBuffer audioBuffer = ByteBuffer.allocate(500 * 1024);
+                MediaCodec.BufferInfo videoBufferInfo = new MediaCodec.BufferInfo();
+                MediaCodec.BufferInfo audioBufferInfo = new MediaCodec.BufferInfo();
                 long timeBeforeAdvance = videoMap.extractor.getSampleTime();
                 videoMap.extractor.advance();
                 long timeAfterAdvance = videoMap.extractor.getSampleTime();
                 long interval = timeAfterAdvance - timeBeforeAdvance;
+                Log.d(TAG, "composeVideoAudio: video interval  "+interval);
                 videoMap.extractor.unselectTrack(videoMap.track);
                 videoMap.extractor.selectTrack(videoMap.track);
                 //开始合成视频
-                while (true) {
-                    int sampleDataSize = videoMap.extractor.readSampleData(buffer, 0);
-                    if (sampleDataSize < 0) {
+                while (true && !Thread.interrupted()) {
+                    int videoSampleDataSize = videoMap.extractor.readSampleData(videoBuffer, 0);
+                    if (videoSampleDataSize < 0) {
                         break;
                     }
-                    bufferInfo.size = sampleDataSize;
-                    bufferInfo.offset = 0;
-                    bufferInfo.flags = videoMap.extractor.getSampleFlags();
-                    bufferInfo.presentationTimeUs += interval;
-                    muxer.writeSampleData(videoTrackIndex, buffer, bufferInfo);
+                    videoBufferInfo.size = videoSampleDataSize;
+                    videoBufferInfo.offset = 0;
+                    videoBufferInfo.flags = videoMap.extractor.getSampleFlags();
+                    videoBufferInfo.presentationTimeUs += interval;
+                    muxer.writeSampleData(videoTrackIndex, videoBuffer, videoBufferInfo);
                     videoMap.extractor.advance();
                 }
+                Log.d(TAG, "composeVideoAudio: video     " + videoBufferInfo.presentationTimeUs);
+                //开始合成音频
+                timeBeforeAdvance = audioMap.extractor.getSampleTime();
+                audioMap.extractor.advance();
+                timeAfterAdvance = audioMap.extractor.getSampleTime();
+                interval = timeAfterAdvance - timeBeforeAdvance;
+                Log.d(TAG, "composeVideoAudio: audio interval  "+interval);
+                audioMap.extractor.unselectTrack(audioMap.track);
+                audioMap.extractor.selectTrack(audioMap.track);
+                while (true && !Thread.interrupted()) {
+                    int audioSampleDataSize = audioMap.extractor.readSampleData(audioBuffer, 0);
+                    if (audioSampleDataSize < 0) {
+                        //读取完成，跳出循环
+                        break;
+                    }
+                    audioBufferInfo.size = audioSampleDataSize;
+                    audioBufferInfo.offset = 0;
+                    audioBufferInfo.flags = audioMap.extractor.getSampleFlags();
+                    audioBufferInfo.presentationTimeUs += interval;
+                    muxer.writeSampleData(audioTrackIndex, audioBuffer, audioBufferInfo);
+                    audioMap.extractor.advance();
+                }
+                Log.d(TAG, "composeVideoAudio: audio     " + audioBufferInfo.presentationTimeUs);
+                //合成视频完成
                 muxer.stop();
                 muxer.release();
                 videoMap.extractor.release();
+                audioMap.extractor.release();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -384,65 +411,6 @@ public class VideoUtil {
             e.printStackTrace();
         }
         return null;
-    }
-
-    public static void compose(String videoPath, String audioPath, String composePath) {
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP) {
-            try {
-                MediaExtractor videoExtractor = new MediaExtractor();
-                videoExtractor.setDataSource(videoPath);
-                MediaFormat videoFormat = null;
-                int videoTrackIndex = -1;
-                int videoTrackCount = videoExtractor.getTrackCount();
-                for (int i = 0; i < videoTrackCount; i++) {
-                    videoFormat = videoExtractor.getTrackFormat(i);
-                    String mimeType = videoFormat.getString(MediaFormat.KEY_MIME);
-                    if (mimeType.startsWith("video/")) {
-                        videoTrackIndex = i;
-                        break;
-                    }
-                }
-                videoExtractor.selectTrack(videoTrackIndex);
-                MediaCodec.BufferInfo videoBufferInfo = new MediaCodec.BufferInfo();
-                MediaCodec.BufferInfo audioBufferInfo = new MediaCodec.BufferInfo();
-
-                MediaMuxer mediaMuxer = new MediaMuxer(composePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-                int writeVideoTrackIndex = mediaMuxer.addTrack(videoFormat);
-                mediaMuxer.start();
-
-                ByteBuffer byteBuffer = ByteBuffer.allocate(500 * 1024);
-                //得到当前播放（可以理解为当前帧）的时间点
-                long frameStartTime = videoExtractor.getSampleTime();
-                //播放下一帧
-                videoExtractor.advance();
-                //得到播放上一帧前和播放上一帧后的时间间隔---得到播放一帧所需要的时间（下边设置BufferInfo时会用到）
-                long frameEndTime = videoExtractor.getSampleTime();
-                long intervalTime = Math.abs(frameEndTime - frameStartTime);
-                //因为前边已经播放了一桢了
-//                videoExtractor.unselectTrack(videoTrackIndex);
-//                videoExtractor.selectTrack(videoTrackIndex);
-                while (true) {
-                    int readVideoSampleSize = videoExtractor.readSampleData(byteBuffer, 0);
-                    if (readVideoSampleSize < 0) {
-                        //很奇怪，根据advance的定义，没有数据要读取时返回的是false，但是这里打出的是true
-                        break;
-                    }
-                    videoBufferInfo.size = readVideoSampleSize;
-                    //设置视频的总时长（依次累加每一帧的时间）
-                    videoBufferInfo.presentationTimeUs += intervalTime;
-                    videoBufferInfo.offset = 0;
-                    videoBufferInfo.flags = videoExtractor.getSampleFlags();
-                    mediaMuxer.writeSampleData(writeVideoTrackIndex, byteBuffer, videoBufferInfo);
-                    videoExtractor.advance();
-                }
-                Log.d(TAG, "compose: 跳出");
-                mediaMuxer.stop();
-                mediaMuxer.release();
-                videoExtractor.release();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     static class TMap {

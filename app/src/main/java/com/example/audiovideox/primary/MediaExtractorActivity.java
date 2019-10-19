@@ -2,6 +2,7 @@ package com.example.audiovideox.primary;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.widget.ContentLoadingProgressBar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -13,9 +14,11 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
 
 import com.example.audiovideox.R;
 import com.example.audiovideox.util.cache.VideoUtil;
@@ -24,9 +27,13 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -37,42 +44,55 @@ import java.util.concurrent.TimeUnit;
  */
 public class MediaExtractorActivity extends AppCompatActivity {
 
-    private MediaExtractor mediaExtractor;
+    private String TAG = "MediaExtractorActivity";
     private RecyclerView recyclerView;
     private RecyclerView.LayoutManager layoutManager;
     private VideosAdapter adapter;
     private List<String[]> list = new ArrayList<>();
     private TextureView textureView;
+    private ProgressBar progressBar;
+    private ThreadPoolExecutor executor;
+    private Set<Future> threads = new HashSet<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        long l = System.currentTimeMillis();
         setContentView(R.layout.activity_media_extractor);
         recyclerView = findViewById(R.id.recycler_view_videos);
         textureView = findViewById(R.id.texture_view);
+        progressBar = findViewById(R.id.progress_bar);
         layoutManager = new LinearLayoutManager(this);
         getVideos();
         adapter = new VideosAdapter(list, this, R.layout.item_layout_tv);
         recyclerView.setAdapter(adapter);
         recyclerView.setLayoutManager(layoutManager);
+        l = System.currentTimeMillis() - l;
+        System.out.println("currentTimeMillis   " + l);
     }
 
     private void getVideos() {
-        File mountedDir = new File(getExternalFilesDir(Environment.MEDIA_MOUNTED), "mediavideos");
-        if (mountedDir.exists()) {
-            File[] files = mountedDir.listFiles();
-            for (int i = 0; i < files.length; i++) {
-                String[] arr = {files[i].getName(), files[i].getAbsolutePath()};
-                this.list.add(arr);
+        new Thread() {
+            @Override
+            public void run() {
+                File mountedDir = new File(getExternalFilesDir(Environment.MEDIA_MOUNTED), "mediavideos");
+                if (mountedDir.exists()) {
+                    File[] files = mountedDir.listFiles();
+                    for (int i = 0; i < files.length; i++) {
+                        String[] arr = {files[i].getName(), files[i].getAbsolutePath()};
+                        list.add(arr);
+                    }
+                }
+                list.add(new String[]{"test_video.mp4", "https://shopin-images.oss-cn-beijing.aliyuncs.com/2015305/test_video.mp4"});
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        progressBar.setVisibility(View.GONE);
+                        adapter.notifyDataSetChanged();
+                    }
+                });
             }
-        }
-        list.add(new String[]{"test_video.mp4", "https://shopin-images.oss-cn-beijing.aliyuncs.com/2015305/test_video.mp4"});
-    }
-
-    private void initMediaExtractor() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-            mediaExtractor = new MediaExtractor();
-        }
+        }.start();
     }
 
     public void btnClick(View view) {
@@ -90,7 +110,7 @@ public class MediaExtractorActivity extends AppCompatActivity {
                 playAudio(adapter.getSelectedPath());
                 break;
             case R.id.compose_video_audio_btn:
-                composeVideoAudio(adapter.getSelectedPath(), adapter.getSelectedPath2());
+                composeVideoAudio(adapter.getSelectedPath(), adapter.getSelectedPath());
                 break;
             default:
                 break;
@@ -100,9 +120,7 @@ public class MediaExtractorActivity extends AppCompatActivity {
     private void composeVideoAudio(String videoPath, String audioPath) {
         File mountedDir = new File(getExternalFilesDir(Environment.MEDIA_MOUNTED), "mediavideos");
         File file = new File(mountedDir, "compose-" + new Random().nextInt(9999999) + ".mp4");
-        VideoUtil.compose(videoPath, audioPath, file.getAbsolutePath());
-        File file1 = new File(mountedDir, "my-compose-" + new Random().nextInt(9999999) + ".mp4");
-        VideoUtil.composeVideoAudio(videoPath, audioPath, file1.getAbsolutePath());
+        VideoUtil.composeVideoAudio(videoPath, audioPath, file.getAbsolutePath());
     }
 
     void playVideo(final String path) {
@@ -139,15 +157,15 @@ public class MediaExtractorActivity extends AppCompatActivity {
     }
 
     void playVideoAudio(final String path) {
-        ThreadPoolExecutor executor = new ThreadPoolExecutor(2, 2, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-        executor.submit(new Runnable() {
+        executor = new ThreadPoolExecutor(2, 2, 0, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+        Future<?> audioTask = executor.submit(new Runnable() {
             @Override
             public void run() {
                 Thread.currentThread().setName("播放音频-----:");
                 VideoUtil.playAudio(path);
             }
         });
-        executor.submit(new Runnable() {
+        Future<?> videoTask = executor.submit(new Runnable() {
             @Override
             public void run() {
                 Thread.currentThread().setName("播放视频+++++:");
@@ -168,6 +186,8 @@ public class MediaExtractorActivity extends AppCompatActivity {
                 });
             }
         });
+        threads.add(audioTask);
+        threads.add(videoTask);
     }
 
     public static void start(Context context) {
@@ -175,4 +195,19 @@ public class MediaExtractorActivity extends AppCompatActivity {
         context.startActivity(starter);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Log.d(TAG, "onDestroy: ");
+        Iterator<Future> iterator = threads.iterator();
+        while (iterator.hasNext()) {
+            Future future = iterator.next();
+            //这里取消时不需要trycatch，因为cancel机制自带trycatch，并且如果中断过程中报错了，还有重试机制（使用的就是UnSafe的CAS机制）
+            future.cancel(true);
+            Log.d(TAG, "onDestroy: Cancel " + future.isCancelled());
+        }
+        if (executor != null)
+            executor.shutdownNow();
+        Log.d(TAG, "onDestroy: ");
+    }
 }

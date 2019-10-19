@@ -83,8 +83,11 @@ file.delete()
 //这个方法不能立即删除文件，至于什么时候删除，需要再看
 file.deleteOnExit();
 ```
-3. 使用ConstraintLayout时布局遮挡
+4. 使用ConstraintLayout时布局遮挡
 >使用wracontent后产生布局遮挡问题（本来是想实现linearlayout权重一样的效果）。解决办法：wrapcontent改为0dp。
+
+5. 优雅的停止线程
+Thread.interrupted方法并不能每次都起作用，所以我们可以先中断，然后在for循环里判断是否中断了，如果是，跳出for循环。
 
 
 

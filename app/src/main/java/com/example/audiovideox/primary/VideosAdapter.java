@@ -2,6 +2,10 @@ package com.example.audiovideox.primary;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
 import android.util.LruCache;
 import android.view.LayoutInflater;
@@ -22,6 +26,7 @@ import com.example.audiovideox.util.cache.ImageLoaderUtil;
 import com.example.audiovideox.util.cache.MemoryCache;
 import com.example.audiovideox.util.cache.MyBitmapCache;
 
+import java.io.File;
 import java.util.List;
 
 public class VideosAdapter extends BaseRecyclerAdapter<String[], VideosAdapter.MyViewHolder> {
@@ -49,6 +54,17 @@ public class VideosAdapter extends BaseRecyclerAdapter<String[], VideosAdapter.M
     @Override
     public void onBindViewHolder(@NonNull final MyViewHolder holder, final int position) {
         holder.textView.setText(datas.get(position)[0]);
+        holder.textView.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                File mountedDir = new File(context.getExternalFilesDir(Environment.MEDIA_MOUNTED), "mediavideos");
+                File file = new File(mountedDir, datas.get(position)[0]);
+                file.delete();
+                datas.remove(position);
+                notifyDataSetChanged();
+                return true;
+            }
+        });
         holder.radioButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -68,11 +84,17 @@ public class VideosAdapter extends BaseRecyclerAdapter<String[], VideosAdapter.M
             }
         });
         holder.radioButton.setChecked(position == selectedPosition);
-        MyPreviewVideoImage image = imageLoader.displayVideoFrameByPath(holder.imageView, datas.get(position)[1], 10);
-        if (image == null) {
-            holder.timeTv.setText(String.valueOf(0));
-        } else
-            holder.timeTv.setText(String.valueOf(image.getTime()));
+        Handler handler = new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+                MyPreviewVideoImage image = (MyPreviewVideoImage) msg.obj;
+                if (image == null) {
+                    holder.timeTv.setText(String.valueOf(0));
+                } else
+                    holder.timeTv.setText(String.valueOf(image.getTime()));
+            }
+        };
+        imageLoader.displayVideoFrameByPathAsync(holder.imageView, datas.get(position)[1], 10, handler);
     }
 
     @Override

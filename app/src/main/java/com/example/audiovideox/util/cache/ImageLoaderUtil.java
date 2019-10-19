@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
 import android.widget.ImageView;
 
@@ -15,10 +16,12 @@ public class ImageLoaderUtil {
 
     private static Handler handler = new Handler(Looper.getMainLooper());
 
-    private ImageCache<MyPreviewVideoImage> imageCache;
+    private static ImageCache<MyPreviewVideoImage> imageCacheInstance;
 
     public ImageLoaderUtil(ImageCache<MyPreviewVideoImage> imageCache) {
-        this.imageCache = imageCache;
+        if(imageCacheInstance == null){
+            imageCacheInstance = imageCache;
+        }
     }
 
     /**
@@ -44,7 +47,8 @@ public class ImageLoaderUtil {
      * 加载本地图片
      */
     public MyPreviewVideoImage displayVideoFrameByPath(ImageView view, String path, long time) {
-        MyPreviewVideoImage videoImage = imageCache.get(path);
+        long l = System.currentTimeMillis();
+        MyPreviewVideoImage videoImage = imageCacheInstance.get(path);
         if (videoImage == null) {
             videoImage = VideoUtil.getFrameAtTime(path, time);
             if (videoImage == null || videoImage.getBitmap() == null) {
@@ -52,20 +56,48 @@ public class ImageLoaderUtil {
             }
             Log.d(TAG, "displayVideoFrameByPath: " + (videoImage.getBitmap().getWidth() *
                     videoImage.getBitmap().getHeight() / 1024));
-            imageCache.put(path, videoImage);
+            imageCacheInstance.put(path, videoImage);
         }
         displayImage(view, videoImage.getBitmap());
+        l = System.currentTimeMillis() - l;
+        System.out.println("displayVideoFrameByPath  "+l);
         return videoImage;
     }
 
     /**
      * 加载本地图片
      */
+    public void displayVideoFrameByPathAsync(final ImageView view, final String path, final long time, final Handler handler) {
+        new Thread(){
+            @Override
+            public void run() {
+                MyPreviewVideoImage videoImage = imageCacheInstance.get(path);
+                if (videoImage == null) {
+                    videoImage = VideoUtil.getFrameAtTime(path, time);
+                    if (videoImage == null || videoImage.getBitmap() == null) {
+                        //异步的时候，为null就先不校验了
+                    }
+                    Log.d(TAG, "displayVideoFrameByPath: " + (videoImage.getBitmap().getWidth() *
+                            videoImage.getBitmap().getHeight() / 1024));
+                    imageCacheInstance.put(path, videoImage);
+                }
+                Message message = handler.obtainMessage();
+                message.obj = videoImage;
+                handler.sendMessage(message);
+                displayImage(view, videoImage.getBitmap());
+            }
+        }.start();
+    }
+
+
+    /**
+     * 加载本地图片
+     */
     public void displayImageByFilePath(ImageView view, String path) {
-        Bitmap bitmap = imageCache.get(path).getBitmap();
+        Bitmap bitmap = imageCacheInstance.get(path).getBitmap();
         if (bitmap == null) {
             bitmap = BitmapFactory.decodeFile(path);
-            imageCache.put(path, new MyPreviewVideoImage(bitmap));
+            imageCacheInstance.put(path, new MyPreviewVideoImage(bitmap));
         }
         displayImage(view, bitmap);
     }
