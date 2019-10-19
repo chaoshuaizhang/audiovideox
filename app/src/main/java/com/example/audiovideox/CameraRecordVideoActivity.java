@@ -108,7 +108,7 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
         initMountedDir();
     }
 
-    private void initMountedDir(){
+    private void initMountedDir() {
         //创建挂载目录
         mountedDir = new File(getExternalFilesDir(Environment.MEDIA_MOUNTED), "mediavideos");
         if (!mountedDir.exists()) {
@@ -169,7 +169,6 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
 
     /**
      * 得到摄像头（前置、后置）ID
-     *
      */
     private void initCameraParams() {
         try {
@@ -398,12 +397,14 @@ public class CameraRecordVideoActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        service.shutdown();
+        if (service != null)
+            service.shutdown();
         //在销毁后一定要关闭device，否则下次进入Activity时无法使用device，这块儿很奇怪，明明activity已经销毁了...
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            cameraDevice.close();
+            if (cameraDevice != null)
+                cameraDevice.close();
+            cameraDevice = null;
         }
-        cameraDevice = null;
     }
 
     class MyRunnable implements Runnable {

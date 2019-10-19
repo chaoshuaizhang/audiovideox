@@ -110,7 +110,7 @@ public class MediaExtractorActivity extends AppCompatActivity {
                 playAudio(adapter.getSelectedPath());
                 break;
             case R.id.compose_video_audio_btn:
-                composeVideoAudio(adapter.getSelectedPath(), adapter.getSelectedPath());
+                composeVideoAudio(adapter.getSelectedPath(), adapter.getSelectedPath2());
                 break;
             default:
                 break;

@@ -139,7 +139,7 @@ public class VideoUtil {
                 boolean isVideoEOS = false;
                 MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
                 long timeMillis = System.currentTimeMillis();
-                while (!isVideoEOS) {
+                while (!isVideoEOS && !Thread.interrupted()) {
                     isVideoEOS = decodeMediaData(mediaExtractor, mediaCodec);
                     int decodedBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 10000);
                     switch (decodedBufferIndex) {
@@ -241,7 +241,6 @@ public class VideoUtil {
                             break;
                         default:
                             ByteBuffer outputBuffer = audioCodec.getOutputBuffer(outputBufferIndex);
-                            // 延时解码，跟视频时间同步
                             decodeDelay(audioBufferInfo, startMs);
                             // 如果解码成功，则将解码后的音频PCM数据用AudioTrack播放出来
                             if (audioBufferInfo.size > 0) {
@@ -301,12 +300,19 @@ public class VideoUtil {
         return isMediaEOS;
     }
 
+    /**
+     * 延迟解码
+     * @param bufferInfo
+     * @param startMillis
+     */
     private static void decodeDelay(MediaCodec.BufferInfo bufferInfo, long startMillis) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-            while (bufferInfo.presentationTimeUs / 1000 > System.currentTimeMillis() - startMillis) {
+            long delayMills;
+            //当系统已经解码的视频时间与当前已经过去的系统时间，长度不匹配时需要延迟一会儿解码
+            while ((delayMills = bufferInfo.presentationTimeUs / 1000 - (System.currentTimeMillis() - startMillis)) > 0) {
                 try {
-                    Log.d(TAG, "decodeDelay: " + Thread.currentThread().getName());
-                    sleep(1);
+                    Log.d(TAG, "decodeDelay: " + delayMills);
+                    sleep(delayMills);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     break;
@@ -334,13 +340,9 @@ public class VideoUtil {
                 ByteBuffer audioBuffer = ByteBuffer.allocate(500 * 1024);
                 MediaCodec.BufferInfo videoBufferInfo = new MediaCodec.BufferInfo();
                 MediaCodec.BufferInfo audioBufferInfo = new MediaCodec.BufferInfo();
-                long timeBeforeAdvance = videoMap.extractor.getSampleTime();
-                videoMap.extractor.advance();
-                long timeAfterAdvance = videoMap.extractor.getSampleTime();
-                long interval = timeAfterAdvance - timeBeforeAdvance;
-                Log.d(TAG, "composeVideoAudio: video interval  "+interval);
-                videoMap.extractor.unselectTrack(videoMap.track);
-                videoMap.extractor.selectTrack(videoMap.track);
+                long interval = 0;
+                long beforeAdvanceTime = 0;
+                long afterAdvanceTime = 0;
                 //开始合成视频
                 while (true && !Thread.interrupted()) {
                     int videoSampleDataSize = videoMap.extractor.readSampleData(videoBuffer, 0);
@@ -350,19 +352,15 @@ public class VideoUtil {
                     videoBufferInfo.size = videoSampleDataSize;
                     videoBufferInfo.offset = 0;
                     videoBufferInfo.flags = videoMap.extractor.getSampleFlags();
-                    videoBufferInfo.presentationTimeUs += interval;
+                    videoBufferInfo.presentationTimeUs += interval < 0 ? 0 : interval;
                     muxer.writeSampleData(videoTrackIndex, videoBuffer, videoBufferInfo);
+                    beforeAdvanceTime = videoMap.extractor.getSampleTime();
                     videoMap.extractor.advance();
+                    afterAdvanceTime = videoMap.extractor.getSampleTime();
+                    interval = afterAdvanceTime - beforeAdvanceTime;
                 }
-                Log.d(TAG, "composeVideoAudio: video     " + videoBufferInfo.presentationTimeUs);
                 //开始合成音频
-                timeBeforeAdvance = audioMap.extractor.getSampleTime();
-                audioMap.extractor.advance();
-                timeAfterAdvance = audioMap.extractor.getSampleTime();
-                interval = timeAfterAdvance - timeBeforeAdvance;
-                Log.d(TAG, "composeVideoAudio: audio interval  "+interval);
-                audioMap.extractor.unselectTrack(audioMap.track);
-                audioMap.extractor.selectTrack(audioMap.track);
+                interval = 0;
                 while (true && !Thread.interrupted()) {
                     int audioSampleDataSize = audioMap.extractor.readSampleData(audioBuffer, 0);
                     if (audioSampleDataSize < 0) {
@@ -372,11 +370,13 @@ public class VideoUtil {
                     audioBufferInfo.size = audioSampleDataSize;
                     audioBufferInfo.offset = 0;
                     audioBufferInfo.flags = audioMap.extractor.getSampleFlags();
-                    audioBufferInfo.presentationTimeUs += interval;
+                    audioBufferInfo.presentationTimeUs += interval < 0 ? 0 : interval;
                     muxer.writeSampleData(audioTrackIndex, audioBuffer, audioBufferInfo);
+                    beforeAdvanceTime = audioMap.extractor.getSampleTime();
                     audioMap.extractor.advance();
+                    afterAdvanceTime = audioMap.extractor.getSampleTime() - beforeAdvanceTime;
+                    interval = afterAdvanceTime - beforeAdvanceTime;
                 }
-                Log.d(TAG, "composeVideoAudio: audio     " + audioBufferInfo.presentationTimeUs);
                 //合成视频完成
                 muxer.stop();
                 muxer.release();
