@@ -32,16 +32,17 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
     }
 
     private void init() {
-
         mHolder = getHolder();
+        //实现callback接口，方便控制绘制的开始和结束
         mHolder.addCallback(this);
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
+        //surface已经创建完成，可以开始绘制了
         mIsRunning = true;
         draw();
-        //并不是非得要线程，绘制量大时可以使用线程
+        //并不是非得要线程，绘制量大时可以使用线程，SurfaceView可以在子线程中进行绘制
         //new Thread(this).start();
     }
 
@@ -53,6 +54,7 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
+        //surface销毁，停止绘制
         mIsRunning = false;
     }
 

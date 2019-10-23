@@ -71,8 +71,8 @@ public class MediaRecorderActivity extends AppCompatActivity implements AdapterV
                     mediaRecorder = new MediaRecorder();
                     // TODO: 2019/9/14/014 注意下边的几行代码的顺序一定要控制好（可以看源码注释，里边写了哪行必须先执行，后执行）
                     //设置录音来源为麦克风
-                    mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-                    //设置MediaRecorder输出格式
+                    mediaRecorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
+                    //设置MediaRecorder输出格式+
                     mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT);
                     //设置使用的编码
                     mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);

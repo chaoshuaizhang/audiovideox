@@ -17,7 +17,6 @@ import androidx.annotation.RequiresApi;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.SeekBar;
 
 import com.example.audiovideox.R;
 
@@ -40,9 +39,8 @@ import androidx.appcompat.app.AppCompatActivity;
  *
  * @author changePosition
  */
-public class AudioRecordActivity extends AppCompatActivity implements SeekBar.OnSeekBarChangeListener {
+public class AudioRecordActivity extends AppCompatActivity{
 
-    private SeekBar seekBar;
     private AudioRecord audioRecord;
     private AudioTrack audioTrack;
     private File mountedDir = null;
@@ -55,8 +53,6 @@ public class AudioRecordActivity extends AppCompatActivity implements SeekBar.On
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_audio_record);
-        seekBar = findViewById(R.id.seekbar);
-        seekBar.setOnSeekBarChangeListener(this);
         mountedDir = new File(getExternalFilesDir(Environment.MEDIA_MOUNTED), "audiorecord");
         if (!mountedDir.exists()) {
             mountedDir.mkdir();
@@ -85,21 +81,6 @@ public class AudioRecordActivity extends AppCompatActivity implements SeekBar.On
     public static void start(Context context) {
         Intent starter = new Intent(context, AudioRecordActivity.class);
         context.startActivity(starter);
-    }
-
-    @Override
-    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-
-    }
-
-    @Override
-    public void onStartTrackingTouch(SeekBar seekBar) {
-
-    }
-
-    @Override
-    public void onStopTrackingTouch(SeekBar seekBar) {
-
     }
 
     class RecordRunnable implements Runnable {

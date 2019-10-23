@@ -95,7 +95,9 @@ public class CameraRecordAudioActivity extends BaseActivity<CameraPresenter> {
         constraintLayout = findViewById(R.id.camera_bg);
         tvCameraParams = findViewById(R.id.tv_camera_params);
         initCamera();
+        //初始化状态回调
         stateCallback = getStateCallback();
+        //初始化ImageReader，在有图片流时进行回调
         initImageReader();
         //初始化serviceView
         initServiceView();
@@ -265,21 +267,20 @@ public class CameraRecordAudioActivity extends BaseActivity<CameraPresenter> {
      * 调用系统服务拍照
      */
     private void systemCameraTakePicture() {
-        //getExternalCacheDir应用关联缓存目录-zaiSD卡中单独开辟缓存区域存放当前应用的数据，引用卸载后会被清除
-        //getExternalCacheDir时，下边执行同步时，根本同步不过去，跟是不是再xml中配置path无关
+        /**
+         * getExternalCacheDir应用关联缓存目录-在SD卡中单独开辟缓存区域存放当前应用的数据，应用卸载后会被清除。
+         * getExternalCacheDir时，下边执行同步图片时，根本同步不过去，跟是不是在xml中配置path无关
+         * */
         File file = new File(Environment.getExternalStorageDirectory(), "sys_camera_take_pic");
         if (!file.exists()) {
             file.mkdir();
         }
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         currentFile = new File(file, System.currentTimeMillis() + ".jpg");
-        Log.d(TAG, "systemCameraTakePicture: " + currentFile.getAbsolutePath());
         //系统版本低于7.0时把file转为Uri对象（这个Uri标示着这个对象的真实路径），高于7.0时会认为此方式不安全，需要使用内容提供者
         if (Build.VERSION.SDK_INT >= 24) {
-            Log.d(TAG, "systemCameraTakePicture: >= 24");
             imageUri = FileProvider.getUriForFile(this, authority, currentFile);
         } else {
-            Log.d(TAG, "systemCameraTakePicture: < 24");
             imageUri = Uri.fromFile(currentFile);
         }
         intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
@@ -292,8 +293,7 @@ public class CameraRecordAudioActivity extends BaseActivity<CameraPresenter> {
             case 1001:
                 Log.d(TAG, "onActivityResult: " + currentFile.getAbsolutePath());
                 Bitmap bitmap = null;
-                //拍完后存在本地，然后再获取
-                //方式1
+                //方式1：拍完后存在本地，然后再获取
                 //bitmap = BitmapFactory.decodeFile(currentFile.getAbsolutePath());
                 try {
                     //方式2
@@ -302,24 +302,31 @@ public class CameraRecordAudioActivity extends BaseActivity<CameraPresenter> {
                     e.printStackTrace();
                 }
                 //方式3：直接从系统相机返回数据（会被压缩）
-//                Bitmap bitmap = (Bitmap) data.getExtras().get("data");
+                //Bitmap bitmap = (Bitmap) data.getExtras().get("data");
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
                     surfaceView.setVisibility(View.GONE);
                     constraintLayout.setBackground(new BitmapDrawable(getResources(), bitmap));
                 }
+                /**
+                 * 注意：上述步骤完成后会发现虽然拍完照了，图片回显了，但是系统相册里边没
+                 * 有（但是我们设置的那个文件夹里有）。接下来需要把图片插入到系统相册（如
+                 * 果需要的话），这里又分发广播同步/使用MediaScanner同步。
+                 * */
 
-                //注意：上述步骤完成后会发现虽然拍完照了，图片回显了，但是系统相册里边没有（但是我们设置的那个文件夹里有）
-                //接下来需要把图片插入到系统相册（如果需要的话）
-                //这里又分发广播同步/使用MediaScanner同步
-                String imagePath = MediaStore.Images.Media.insertImage(getContentResolver(), bitmap,
+                //方式1：先插入，再发广播扫描
+                MediaStore.Images.Media.insertImage(getContentResolver(), bitmap,
                         "无名：" + new Random().nextInt(100), "描述");
                 //但是这里发广播不起作用
                 Intent intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-//                Uri uri = FileProvider.getUriForFile(this, authority, currentFile);
-                Uri uri = Uri.fromFile(currentFile);
+                Uri uri;
+                if (Build.VERSION.SDK_INT >= 24) {
+                    uri = FileProvider.getUriForFile(this, authority, currentFile);
+                } else {
+                    uri = Uri.fromFile(currentFile);
+                }
                 intent.setData(uri);
                 sendBroadcast(intent);
-////                Log.d(TAG, "onActivityResult---imagePath: "+imagePath);
+                //方式2：自定义MediaScanner扫描指定文件夹下的指定文件类型
                 MyMediaScanner scanner = new MyMediaScanner(this);
                 scanner.scanFileAndType(new String[]{currentFile.getAbsolutePath()}, new String[]{"image/jpeg"});
                 //还有一个办法就是：直接把文件路径写在相册目录下-DCIM/Camera/xxx.jpg，然后再扫描更新
@@ -347,30 +354,45 @@ public class CameraRecordAudioActivity extends BaseActivity<CameraPresenter> {
      */
     private void initImageReader() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            /*
+            * 设置ImageReader的尺寸、格式
+            * maxImages表示用户希望能同时从ImageReader中获取到的图片最大数量
+            * */
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                imageReader = ImageReader.newInstance(photoSize.getWidth(), photoSize.getHeight(), ImageFormat.JPEG, 1);
+                imageReader = ImageReader.newInstance(photoSize.getWidth(), photoSize.getHeight(), ImageFormat.YUV_420_888, 1);
             } else {
                 imageReader = ImageReader.newInstance(1920, 1080, ImageFormat.JPEG, 1);
             }
             //设置ImageReader回调---拍照后回调，可从中获取到数据流
             imageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
+                //当有一个新图片有效时会回调到这里
                 @Override
                 public void onImageAvailable(ImageReader reader) {
                     Log.d(TAG, "onImageAvailable: ");
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                         cameraDevice.close();
                     }
-                    //拿到拍照照片数据
+                    //从Reader的queue中获取下一个最新的可用的Image，没有则返回null
                     Image image = reader.acquireNextImage();
-                    ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+                    /*
+                    * getPlanes获取此图像的像素平面数组，平面数组的数量由图像的格式决定。
+                    * 但是这里为什么获取第0个Plane的Buffer？
+                    * 因为得到数组中元素的个数是由实例化Reader时设置的格式决定的。
+                    * JPEG对应1
+                    * YUV_420_888对应3
+                    * YUV_422_888对应3
+                    * 这块儿不同的格式还不是很清楚，暂时用的是JPEG，所以需要获取到数组的第一个元素
+                    * */
+                    Image.Plane[] planes = image.getPlanes();
+                    ByteBuffer buffer = planes[0].getBuffer();
                     byte[] bytes = new byte[buffer.remaining()];
                     //由缓冲区存入字节数组
                     buffer.get(bytes);
+                    //释放和ImageReader相关联的所有资源
                     image.close();
                     final Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
                     //隐藏预览界面，直接展示拍过的照片
                     surfaceView.setVisibility(View.GONE);
-
                     float width = constraintLayout.getWidth();
                     int bW = bitmap.getWidth();
                     int bH = bitmap.getHeight();
@@ -380,7 +402,6 @@ public class CameraRecordAudioActivity extends BaseActivity<CameraPresenter> {
                     layoutParams.height = (int) height;
                     Log.d(TAG, "onActivityResult: " + width + " +++ " + height);
                     constraintLayout.setLayoutParams(layoutParams);
-
                     constraintLayout.setBackground(new BitmapDrawable(getResources(), bitmap));
                 }
             }, mainHandler);
@@ -401,7 +422,6 @@ public class CameraRecordAudioActivity extends BaseActivity<CameraPresenter> {
                 surfaceTexture.setDefaultBufferSize(photoSize.getWidth(), photoSize.getHeight());
                 Surface surface = new Surface(surfaceTexture);
                 previewRequestBuilder.addTarget(surface);
-                //previewRequestBuilder.addTarget(imageReader.getSurface());
                 // 创建CameraCaptureSession，该对象负责管理处理预览请求和拍照请求
                 cameraDevice.createCaptureSession(Arrays.asList(surface, imageReader.getSurface()), new CameraCaptureSession.StateCallback() {
                     @Override
